@@ -1,0 +1,5 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/easyschool/public/
+    RewriteRule ^(.*)$ /easyschool/public/$1 [R=302,L]
+</IfModule>
