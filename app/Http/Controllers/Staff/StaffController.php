@@ -175,7 +175,7 @@ class StaffController extends Controller
             'existingQualifications' => $existingQualifications,
             'assignedEarnings' => $assignedEarnings,
             'assignedDeductions' => $assignedDeductions,
-        ], $screenLinks, $this->hrFormData()));
+        ], $this->hrFormData()));
     }
 
     public function updateStaff(Request $request, $id)
