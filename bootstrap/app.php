@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'parent' => \App\Http\Middleware\EnsureParent::class,
             'parent.owns.student' => \App\Http\Middleware\EnsureParentOwnsStudent::class,
             'staff.auth' => \App\Http\Middleware\EnsureStaffAuthenticated::class,
+            'menu.access' => \App\Http\Middleware\EnsureMenuAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

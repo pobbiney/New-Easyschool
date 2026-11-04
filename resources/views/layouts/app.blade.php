@@ -1,51 +1,7 @@
 @php
     $staff_query = DB::select('SELECT * FROM staff WHERE id = :id', ['id' => auth()->user()->staff_id]);
 
-    $userId = auth()->user()->id;
-
-    $allLinkIds = DB::table('user_access_links')
-        ->where('user_id', $userId)
-        ->pluck('link_id');
-
-    $categoryId = (int) (auth()->user()->user_cat ?: auth()->user()->cat_id);
-    if ($categoryId) {
-        $categoryLinkIds = DB::table('user_cat_links')
-            ->where('cat_id', $categoryId)
-            ->pluck('link_id');
-        $allLinkIds = $allLinkIds->merge($categoryLinkIds);
-    }
-
-    $leaveLinkId = DB::table('user_links')
-        ->where('link_url', 'leave-application')
-        ->where('status', 'Active')
-        ->value('link_id');
-
-    if ($leaveLinkId) {
-        $allLinkIds = $allLinkIds->push((int) $leaveLinkId);
-    }
-
-    if ($allLinkIds->isNotEmpty()) {
-        $parentLinkIds = DB::table('user_links')
-            ->whereIn('link_id', $allLinkIds)
-            ->where('link_parent', '>', 0)
-            ->pluck('link_parent');
-
-        $allLinkIds = $allLinkIds->merge($parentLinkIds)->unique()->values();
-    }
-
-    $links = DB::table('user_links')
-        ->whereIn('link_id', $allLinkIds)
-        ->where('status', 'Active')
-        ->orderBy('link_name')
-        ->get([
-            'link_id',
-            'page_id',
-            'page_id_sub',
-            'link_url',
-            'link_name',
-            'link_image',
-            'link_parent',
-        ]);
+    $links = app(\App\Services\UserAccessService::class)->menuLinks();
     $parents = array();
     $child = array();
     foreach ($links as $row_links) {

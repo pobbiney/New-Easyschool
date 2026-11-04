@@ -121,7 +121,7 @@ Route::get('id-card/scan/staff/{code}', [StaffController::class, 'scanByCode'])
     ->name('id-card-scan-staff')
     ->where('code', '[A-Za-z0-9\-]+');
 
-Route::middleware(['staff.auth'])->group(function () {
+Route::middleware(['staff.auth', 'menu.access'])->group(function () {
 Route::get('dashboard',[DashboardController::class,'index'])->name('dashboard');
  
 Route::get('user-profile',[AuthenticationController::class,'getUserProfile'])->name('user-profile');
