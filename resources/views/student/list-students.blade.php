@@ -28,32 +28,6 @@
         z-index: 1060;
     }
 
-    .student-list-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 22px;
-    }
-
-    .student-list-avatar.is-male {
-        background: #dbeafe;
-        color: #1d4ed8;
-    }
-
-    .student-list-avatar.is-female {
-        background: #fce7f3;
-        color: #be185d;
-    }
-
-    .student-list-avatar.is-neutral {
-        background: #e6f7f5;
-        color: #0f766e;
-    }
-
     @media (max-width: 767px) {
         .student-list-dataTable-wrapper .dt-search {
             width: 100%;
@@ -201,27 +175,14 @@
                                         @php
                                             $studentPhoto = trim((string) ($student->picture ?? ''));
                                             $hasStudentPhoto = $studentPhoto !== '' && is_file(public_path($studentPhoto));
+                                            $studentGender = strtolower(trim((string) $student->gender));
+                                            $fallbackPhoto = match (true) {
+                                                in_array($studentGender, ['male', 'm', 'boy'], true) => 'assets/images/avatars/student-male.svg',
+                                                in_array($studentGender, ['female', 'f', 'girl'], true) => 'assets/images/avatars/student-female.svg',
+                                                default => 'assets/images/student-placeholder.svg',
+                                            };
                                         @endphp
-                                        @if($hasStudentPhoto)
-                                            <img src="{{ asset($studentPhoto) }}" alt="{{ $student->full_name }}" class="flex-shrink-0 me-12 radius-8" width="44" height="44" style="object-fit:cover;">
-                                        @else
-                                            @php
-                                                $studentGender = strtolower(trim((string) $student->gender));
-                                                $avatarTone = match (true) {
-                                                    in_array($studentGender, ['male', 'm', 'boy'], true) => 'is-male',
-                                                    in_array($studentGender, ['female', 'f', 'girl'], true) => 'is-female',
-                                                    default => 'is-neutral',
-                                                };
-                                                $avatarIcon = match ($avatarTone) {
-                                                    'is-male' => 'ri-men-line',
-                                                    'is-female' => 'ri-women-line',
-                                                    default => 'ri-user-line',
-                                                };
-                                            @endphp
-                                            <span class="student-list-avatar {{ $avatarTone }} me-12" aria-hidden="true">
-                                                <i class="{{ $avatarIcon }}"></i>
-                                            </span>
-                                        @endif
+                                        <img src="{{ asset($hasStudentPhoto ? $studentPhoto : $fallbackPhoto) }}" alt="{{ $student->full_name }}" class="flex-shrink-0 me-12 radius-8" width="44" height="44" style="object-fit:cover;">
                                         <div>
                                             <h6 class="text-md mb-0 fw-medium">{{ $student->full_name }}</h6>
                                         </div>
