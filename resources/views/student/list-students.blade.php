@@ -28,6 +28,32 @@
         z-index: 1060;
     }
 
+    .student-list-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 22px;
+    }
+
+    .student-list-avatar.is-male {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .student-list-avatar.is-female {
+        background: #fce7f3;
+        color: #be185d;
+    }
+
+    .student-list-avatar.is-neutral {
+        background: #e6f7f5;
+        color: #0f766e;
+    }
+
     @media (max-width: 767px) {
         .student-list-dataTable-wrapper .dt-search {
             width: 100%;
@@ -172,12 +198,29 @@
                                 <td><span class="text-primary-600 fw-semibold">{{ $student->student_id }}</span></td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        @if(!empty($student->picture))
-                                            <img src="{{ asset($student->picture) }}" alt="{{ $student->full_name }}" class="flex-shrink-0 me-12 radius-8" width="44" height="44" style="object-fit:cover;">
-                                        @elseif(strtolower($student->gender) == 'male')
-                                            <img src="{{ asset('assets/images/thumbs/guardian-img1.png') }}" alt="Student" class="flex-shrink-0 me-12 radius-8" width="44" height="44">
+                                        @php
+                                            $studentPhoto = trim((string) ($student->picture ?? ''));
+                                            $hasStudentPhoto = $studentPhoto !== '' && is_file(public_path($studentPhoto));
+                                        @endphp
+                                        @if($hasStudentPhoto)
+                                            <img src="{{ asset($studentPhoto) }}" alt="{{ $student->full_name }}" class="flex-shrink-0 me-12 radius-8" width="44" height="44" style="object-fit:cover;">
                                         @else
-                                            <img src="{{ asset('assets/images/thumbs/guardian-img2.png') }}" alt="Student" class="flex-shrink-0 me-12 radius-8" width="44" height="44">
+                                            @php
+                                                $studentGender = strtolower(trim((string) $student->gender));
+                                                $avatarTone = match (true) {
+                                                    in_array($studentGender, ['male', 'm', 'boy'], true) => 'is-male',
+                                                    in_array($studentGender, ['female', 'f', 'girl'], true) => 'is-female',
+                                                    default => 'is-neutral',
+                                                };
+                                                $avatarIcon = match ($avatarTone) {
+                                                    'is-male' => 'ri-men-line',
+                                                    'is-female' => 'ri-women-line',
+                                                    default => 'ri-user-line',
+                                                };
+                                            @endphp
+                                            <span class="student-list-avatar {{ $avatarTone }} me-12" aria-hidden="true">
+                                                <i class="{{ $avatarIcon }}"></i>
+                                            </span>
                                         @endif
                                         <div>
                                             <h6 class="text-md mb-0 fw-medium">{{ $student->full_name }}</h6>
