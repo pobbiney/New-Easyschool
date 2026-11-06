@@ -14,7 +14,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $path = $this->app->basePath('app/Services/UserAccessService.php');
+
+        if (! class_exists(\App\Services\UserAccessService::class, false) && is_file($path)) {
+            require_once $path;
+        }
     }
 
     /**
