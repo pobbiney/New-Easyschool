@@ -679,7 +679,7 @@ body.swal2-toast-shown .swal2-container .swal2-popup {
           @php
             $submenu = collect($child)->filter(fn ($sub) => $sub->link_parent == $parent->link_id)->values();
           @endphp
-          @if ($submenu->isEmpty() && filled($parent->link_url) && $parent->link_url !== '#')
+          @if ($submenu->isEmpty() && filled($parent->link_url) && $parent->link_url !== '#' && \Illuminate\Support\Facades\Route::has($parent->link_url))
       <li>
         <a href="{{ route($parent->link_url, [], false) }}" class="@if ($pageName == $parent->page_id) active-page active @endif">
           <i class="{{ $parent->link_image ?: 'ri-circle-line' }}"></i>
@@ -694,6 +694,7 @@ body.swal2-toast-shown .swal2-container .swal2-popup {
         </a>
         <ul class="sidebar-submenu">
            @foreach ($submenu as $sub)
+           @continue(! \Illuminate\Support\Facades\Route::has($sub->link_url))
           <li>
             <a href="{{ route($sub->link_url, [], false) }}" class="@if ($subpageName == $sub->page_id_sub) active @endif">
               <i class="ri-circle-fill circle-icon w-auto"></i>

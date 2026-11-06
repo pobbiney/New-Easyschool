@@ -186,6 +186,7 @@ class UserAccessService
             'update-password-process',
             'leave-application',
             'leave-application-process',
+            'teacher-leave',
         ];
     }
 

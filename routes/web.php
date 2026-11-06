@@ -465,7 +465,7 @@ Route::post('logout-authentication-process',[DashboardController::class,'logoutA
         Route::get('teacher/classes/{class}/report-cards/print', 'printClassReportCards')->name('teacher-class-report-cards-print');
     });
 
-   Route::redirect('teacher-leave', '/leave-application');
+   Route::redirect('teacher-leave', '/leave-application')->name('teacher-leave');
 
    Route::controller(TeacherLeaveController::class)->group(function () {
         Route::get('leave-application', 'index')->name('leave-application');
