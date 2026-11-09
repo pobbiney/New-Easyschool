@@ -220,6 +220,8 @@ class UserAccessService
             'delete-user-category-process' => ['user-categories'],
 
             'save-student-draft-process' => ['add-student'],
+            'download-student-bulk-template' => ['add-student'],
+            'bulk-import-students-process' => ['add-student'],
             'edit-student' => ['list-students'],
             'update-student-process' => ['list-students'],
             'view-student-details' => ['list-students'],

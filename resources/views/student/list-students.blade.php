@@ -58,6 +58,17 @@
         </a>
     </div>
 
+    @if(session('bulk_import_errors'))
+        <div class="alert alert-warning radius-8 mb-24">
+            <div class="fw-semibold mb-8">Bulk upload row errors:</div>
+            <ul class="mb-0 ps-18">
+                @foreach(session('bulk_import_errors') as $error)
+                    <li class="text-sm">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="mt-24">
         <div class="card h-100">
             <div class="card-body p-0 dataTable-wrapper student-list-dataTable-wrapper">

@@ -25,7 +25,24 @@
         </a>
     </div>
 
-    <p class="text-secondary-light mb-0">Fill in the student details and take a live photo during registration, or upload one if the camera is not available.</p>
+    <p class="text-secondary-light mb-16">Register one student with the form below, or bulk upload many records from Excel.</p>
+
+    @if(session('message_success'))
+        <div class="alert alert-success radius-8 mb-16">{{ session('message_success') }}</div>
+    @endif
+    @if(session('message_error'))
+        <div class="alert alert-danger radius-8 mb-16">{{ session('message_error') }}</div>
+    @endif
+
+    @include('student.partials._bulk-import', [
+        'academicYears' => $academicYears,
+        'academicTerms' => $academicTerms,
+    ])
+
+    <div class="d-flex align-items-center gap-12 mb-16">
+        <span class="text-sm fw-semibold text-secondary-light text-uppercase">Or register one student</span>
+        <span class="flex-grow-1 border-top"></span>
+    </div>
 
     @include('student.partials._wizard-form', [
         'formAction' => route('add-student-process'),

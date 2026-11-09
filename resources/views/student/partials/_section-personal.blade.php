@@ -67,10 +67,10 @@
     </div>
     <div class="col-xxl-3 col-xl-4 col-sm-6">
         <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Category</label>
+        @php $selectedCategory = old('category', $student?->category ?? 'Day Student'); @endphp
         <select name="category" class="form-control form-select">
-            <option value="" disabled selected>Select Category</option>
             @foreach(['Day Student', 'Boarding', 'Scholarship', 'International'] as $cat)
-                <option value="{{ $cat }}" {{ old('category', $student?->category ?? '') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                <option value="{{ $cat }}" {{ $selectedCategory == $cat ? 'selected' : '' }}>{{ $cat }}</option>
             @endforeach
         </select>
     </div>
@@ -89,8 +89,8 @@
         @error('dob') <small class="text-danger">{{ $message }}</small> @enderror
     </div>
     <div class="col-xxl-3 col-xl-4 col-sm-6">
-        <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Phone</label>
-        <input type="tel" name="phone" class="form-control" value="{{ old('phone', $student?->phone ?? '') }}" placeholder="Enter phone number">
+        <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Phone <span class="text-secondary-light fw-normal">(optional)</span></label>
+        <input type="tel" name="phone" class="form-control" value="{{ old('phone', $student?->phone ?? '') }}" placeholder="Enter phone number (optional)">
         @error('phone') <small class="text-danger">{{ $message }}</small> @enderror
     </div>
     <div class="col-xxl-3 col-xl-4 col-sm-6">

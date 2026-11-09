@@ -228,6 +228,8 @@ Route::post('logout-authentication-process',[DashboardController::class,'logoutA
    Route::controller(StudentController::class)->group(function () {
         Route::get('add-student', 'getAddStudentView')->name('add-student');
         Route::post('add-student-process', 'addStudent')->name('add-student-process');
+        Route::get('download-student-bulk-template', 'downloadBulkStudentTemplate')->name('download-student-bulk-template');
+        Route::post('bulk-import-students-process', 'bulkImportStudents')->name('bulk-import-students-process');
         Route::post('save-student-draft-process', 'saveStudentDraft')->name('save-student-draft-process');
         Route::get('list-students', 'getListStudentsView')->name('list-students');
         Route::get('edit-student/{id}', 'getEditStudentView')->name('edit-student');

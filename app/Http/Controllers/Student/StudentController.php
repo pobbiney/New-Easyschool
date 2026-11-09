@@ -12,6 +12,7 @@ use App\Models\SchoolSetting;
 use App\Models\House;
 use App\Services\Billing\StudentBillSyncService;
 use App\Services\ParentPortal\ParentAccountService;
+use App\Services\Student\StudentBulkImportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -59,6 +60,48 @@ class StudentController extends Controller
         $this->saveStudentDocuments($request, $student->id);
 
         return redirect()->route('list-students')->with('message_success', 'Student registered successfully.');
+    }
+
+    public function downloadBulkStudentTemplate(StudentBulkImportService $importer)
+    {
+        $classNames = SchoolClass::where('status', 'Active')->orderBy('name')->pluck('name')->all();
+
+        return $importer->downloadTemplate($classNames);
+    }
+
+    public function bulkImportStudents(Request $request, StudentBulkImportService $importer)
+    {
+        $request->validate([
+            'academic_year_id' => 'required|exists:academic_years,id',
+            'academic_term_id' => 'required|exists:academic_terms,id',
+            'students_file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        try {
+            $result = $importer->import(
+                $request->file('students_file'),
+                (int) $request->academic_year_id,
+                (int) $request->academic_term_id
+            );
+        } catch (\Throwable $e) {
+            return back()->with('message_error', $e->getMessage());
+        }
+
+        if ($result['imported'] === 0 && $result['failed'] > 0) {
+            return back()
+                ->with('message_error', 'No students were imported. Fix the errors below and try again.')
+                ->with('bulk_import_errors', $result['errors']);
+        }
+
+        $message = $result['imported'].' student'.($result['imported'] === 1 ? '' : 's').' imported successfully.';
+        if ($result['failed'] > 0) {
+            $message .= ' '.$result['failed'].' row'.($result['failed'] === 1 ? '' : 's').' failed.';
+        }
+
+        return redirect()
+            ->route('list-students')
+            ->with('message_success', $message)
+            ->with('bulk_import_errors', $result['errors']);
     }
 
     public function saveStudentDraft(Request $request)
@@ -295,7 +338,7 @@ class StudentController extends Controller
         $student->category = $this->cleanInput($request->category);
         $student->gender = trim($request->gender);
         $student->dob = $this->cleanInput($request->dob) ?? '';
-        $student->phone = $this->cleanInput($request->phone);
+        $student->phone = $this->cleanInput($request->phone) ?? '';
         $student->email = $this->cleanInput($request->email);
 
         $student->father_name = $this->cleanInput($request->father_name);
