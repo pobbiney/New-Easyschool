@@ -114,7 +114,7 @@
                         <tr>
                             <td class="fw-semibold">{{ $class->name }}</td>
                             <td>{{ $class->category?->name ?: '—' }}</td>
-                            <td>{{ $class->classTeacher?->full_name ?: '—' }}</td>
+                            <td>{{ $class->classTeacherNames() ?: '—' }}</td>
                             <td>
                                 @if($tt)
                                     <span class="ac-pill ac-pill-emerald"><i class="ri-checkbox-circle-line"></i> Saved {{ $tt->generated_at?->format('d M H:i') }}</span>

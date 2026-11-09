@@ -28,7 +28,7 @@ class TimetableController extends Controller
     {
         $context = $this->periodContext($request);
         $classes = SchoolClass::query()
-            ->with(['category', 'classTeacher'])
+            ->with(['category', 'classTeachers'])
             ->where('status', 'Active')
             ->orderBy('name')
             ->get();
@@ -57,7 +57,7 @@ class TimetableController extends Controller
         $grid = $this->grid($periods, $timetable);
 
         return view('timetable.show', [
-            'class' => $class->load(['category', 'classTeacher']),
+            'class' => $class->load(['category', 'classTeachers']),
             'timetable' => $timetable,
             'periods' => $periods,
             'grid' => $grid,
@@ -77,7 +77,7 @@ class TimetableController extends Controller
         $school = SchoolSetting::current();
 
         return view('timetable.print', [
-            'class' => $class->load(['category', 'classTeacher']),
+            'class' => $class->load(['category', 'classTeachers']),
             'timetable' => $timetable,
             'periods' => $periods,
             'grid' => $this->grid($periods, $timetable),
@@ -109,7 +109,7 @@ class TimetableController extends Controller
     {
         $context = $this->periodContext($request);
         $classes = SchoolClass::query()
-            ->with(['category', 'classTeacher'])
+            ->with(['category', 'classTeachers'])
             ->where('status', 'Active')
             ->orderBy('name')
             ->get();

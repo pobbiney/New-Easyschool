@@ -29,9 +29,28 @@ class Staff extends Model
         return $this->hasOne(User::class, 'staff_id', 'id');
     }
 
+    public function classTeacherAssignments()
+    {
+        return $this->hasMany(ClassTeacherAssignment::class, 'staff_id');
+    }
+
+    public function assignedClasses()
+    {
+        return $this->belongsToMany(SchoolClass::class, 'class_teacher_assignments', 'staff_id', 'school_class_id')
+            ->withTimestamps()
+            ->withPivot(['created_by', 'updated_by']);
+    }
+
     public function assignedClass()
     {
-        return $this->hasOne(SchoolClass::class, 'class_teacher_id');
+        return $this->hasOneThrough(
+            SchoolClass::class,
+            ClassTeacherAssignment::class,
+            'staff_id',
+            'id',
+            'id',
+            'school_class_id'
+        );
     }
 
     public function courseTeachingAssignments()

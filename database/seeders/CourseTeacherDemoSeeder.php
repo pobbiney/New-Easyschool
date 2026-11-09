@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ClassTeacherAssignment;
 use App\Models\Course;
 use App\Models\CourseTeachingAssignment;
 use App\Models\SchoolClass;
@@ -113,17 +114,29 @@ class CourseTeacherDemoSeeder extends Seeder
         }
 
         if ($classes->has('Primary 2') && $teachers->count() >= 1) {
-            $classes['Primary 2']->update([
-                'class_teacher_id' => $teachers[0]->id,
-                'updated_by' => $adminId,
-            ]);
+            ClassTeacherAssignment::firstOrCreate(
+                [
+                    'school_class_id' => $classes['Primary 2']->id,
+                    'staff_id' => $teachers[0]->id,
+                ],
+                [
+                    'created_by' => $adminId,
+                    'updated_by' => $adminId,
+                ]
+            );
         }
 
         if ($classes->has('JHS 1') && $teachers->count() >= 2) {
-            $classes['JHS 1']->update([
-                'class_teacher_id' => $teachers[1]->id,
-                'updated_by' => $adminId,
-            ]);
+            ClassTeacherAssignment::firstOrCreate(
+                [
+                    'school_class_id' => $classes['JHS 1']->id,
+                    'staff_id' => $teachers[1]->id,
+                ],
+                [
+                    'created_by' => $adminId,
+                    'updated_by' => $adminId,
+                ]
+            );
         }
     }
 

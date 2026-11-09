@@ -3,8 +3,8 @@
         <div class="modal-content radius-12 border-0">
             <div class="modal-header border-bottom px-24 py-16">
                 <div>
-                    <h6 class="modal-title fw-semibold mb-4">Assign Class Teacher</h6>
-                    <p class="text-sm text-secondary-light mb-0">Choose one teacher for <strong id="assign_class_name">this class</strong>.</p>
+                    <h6 class="modal-title fw-semibold mb-4">Assign Class Teachers</h6>
+                    <p class="text-sm text-secondary-light mb-0">Add teachers for <strong id="assign_class_name">this class</strong>. Every assigned teacher gets full class-teacher access.</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -20,8 +20,13 @@
                         </div>
                     </div>
 
-                    <div class="mb-16">
-                        <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Teacher</label>
+                    <div class="mb-16" id="currentTeachersBox" style="display:none;">
+                        <small class="text-secondary-light d-block mb-8">Current teachers</small>
+                        <div id="currentTeachersList" class="d-flex flex-column gap-10"></div>
+                    </div>
+
+                    <div class="mb-8">
+                        <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Add teacher</label>
                         <select class="form-control form-select" name="staff_id" id="assign_staff_id" required>
                             <option value="">Select teacher</option>
                             @foreach($teachers as $teacher)
@@ -30,28 +35,12 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-secondary-light d-block mt-8">Only staff with the Teacher user category are listed. Each class can have one teacher.</small>
-                    </div>
-
-                    <div class="current-teacher-box" id="currentTeacherBox" style="display:none;">
-                        <small class="text-secondary-light d-block mb-8">Current teacher</small>
-                        <div class="d-flex align-items-center gap-12">
-                            <span class="teacher-mini-avatar" id="currentTeacherAvatar">T</span>
-                            <div>
-                                <span class="d-block fw-semibold text-sm" id="currentTeacherName"></span>
-                                <span class="d-block text-xs text-secondary-light" id="currentTeacherMeta"></span>
-                            </div>
-                        </div>
+                        <small class="text-secondary-light d-block mt-8">Only staff with the Teacher user category are listed. A class can have more than one teacher.</small>
                     </div>
                 </div>
-                <div class="modal-footer border-top px-24 py-16 d-flex justify-content-between">
-                    <button type="button" class="btn btn-outline-danger-600" id="unassignClassTeacherBtn" style="display:none;">
-                        Remove Teacher
-                    </button>
-                    <div class="d-flex gap-2 ms-auto">
-                        <button type="button" class="btn btn-outline-neutral-400" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary-600">Save Assignment</button>
-                    </div>
+                <div class="modal-footer border-top px-24 py-16 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-neutral-400" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-600">Add Teacher</button>
                 </div>
             </form>
         </div>
@@ -61,4 +50,5 @@
 <form method="POST" action="{{ route('unassign-class-teacher-process') }}" id="unassignClassTeacherForm" class="d-none">
     @csrf
     <input type="hidden" name="class_id" id="unassign_class_id">
+    <input type="hidden" name="staff_id" id="unassign_staff_id">
 </form>

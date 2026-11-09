@@ -224,7 +224,7 @@
         <h1>{{ $class->name }} — class timetable</h1>
         <p>
             {{ $class->category?->name ?: 'Class' }}
-            @if($class->classTeacher) &nbsp;&bull;&nbsp; Class teacher: {{ $class->classTeacher->full_name }} @endif
+            @if($class->classTeacherNames() !== '') &nbsp;&bull;&nbsp; Class teacher{{ $class->classTeachers->count() > 1 ? 's' : '' }}: {{ $class->classTeacherNames() }} @endif
             @if(!empty($period['year_name'])) &nbsp;&bull;&nbsp; {{ $period['year_name'] }} · {{ $period['term_name'] }} @endif
         </p>
     </div>

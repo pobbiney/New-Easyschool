@@ -11,7 +11,7 @@ class TeacherDirectoryController extends Controller
     public function index()
     {
         $teachers = Staff::query()
-            ->with(['user', 'assignedClass', 'courseTeachingAssignments.schoolClass', 'courseTeachingAssignments.course'])
+            ->with(['user', 'assignedClasses', 'courseTeachingAssignments.schoolClass', 'courseTeachingAssignments.course'])
             ->where('staff.status', 'Active')
             ->whereHas('user', function ($query) {
                 $query->where('user_cat', TeacherCategory::id())
@@ -22,7 +22,7 @@ class TeacherDirectoryController extends Controller
             ->get();
 
         $withLogin = $teachers->filter(fn ($t) => $t->user)->count();
-        $homeroomAssigned = $teachers->filter(fn ($t) => $t->assignedClass)->count();
+        $homeroomAssigned = $teachers->filter(fn ($t) => $t->assignedClasses->isNotEmpty())->count();
         $subjectAssigned = $teachers->filter(fn ($t) => $t->courseTeachingAssignments->isNotEmpty())->count();
 
         return view('teacher-management.teacher-directory', [

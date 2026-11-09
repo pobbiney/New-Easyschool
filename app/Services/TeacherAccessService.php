@@ -52,7 +52,7 @@ class TeacherAccessService
     public function homeroomClasses(int $staffId): Collection
     {
         return SchoolClass::query()
-            ->where('class_teacher_id', $staffId)
+            ->whereHas('classTeacherAssignments', fn ($query) => $query->where('staff_id', $staffId))
             ->where('status', 'Active')
             ->orderBy('name')
             ->get();
@@ -80,7 +80,7 @@ class TeacherAccessService
     {
         return SchoolClass::query()
             ->where('id', $classId)
-            ->where('class_teacher_id', $staffId)
+            ->whereHas('classTeacherAssignments', fn ($query) => $query->where('staff_id', $staffId))
             ->exists();
     }
 

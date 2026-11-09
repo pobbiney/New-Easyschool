@@ -353,7 +353,7 @@
                         <input class="form-control" type="time" name="start_time" id="startTime" value="{{ $dayStart }}" required>
                     </div>
                     <div class="pb-1 text-secondary-light text-sm">
-                        {{ $class->category?->name ?: 'Class' }}{{ $class->classTeacher ? ' · '.$class->classTeacher->full_name : '' }}
+                        {{ $class->category?->name ?: 'Class' }}{{ $class->classTeacherNames() !== '' ? ' · '.$class->classTeacherNames() : '' }}
                     </div>
                 </div>
                 <div class="d-flex flex-wrap gap-8">

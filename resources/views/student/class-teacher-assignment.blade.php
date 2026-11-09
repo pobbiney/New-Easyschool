@@ -204,7 +204,7 @@
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <div>
                     <h6 class="text-lg fw-semibold mb-4">Class Teacher Assignments</h6>
-                    <p class="text-sm text-secondary-light mb-0">Assign exactly one teacher to each class.</p>
+                    <p class="text-sm text-secondary-light mb-0">Assign one or more teachers to each class. Every assigned teacher gets full class-teacher access.</p>
                 </div>
             </div>
         </div>
@@ -221,8 +221,8 @@
                         <tr>
                             <th>#</th>
                             <th>Class</th>
-                            <th>Assigned Teacher</th>
-                            <th>Position</th>
+                            <th>Assigned Teachers</th>
+                            <th>Count</th>
                             <th>Status</th>
                             <th>Action</th>
                         </tr>
@@ -230,11 +230,8 @@
                     <tbody>
                         @foreach($schoolClasses as $class)
                             @php
-                                $teacher = $class->classTeacher;
+                                $teachers = $class->classTeachers;
                                 $initials = strtoupper(substr($class->name, 0, 2));
-                                $teacherInitials = $teacher
-                                    ? strtoupper(substr($teacher->firstname, 0, 1) . substr($teacher->surname, 0, 1))
-                                    : '';
                             @endphp
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
@@ -248,19 +245,26 @@
                                     </div>
                                 </td>
                                 <td>
-                                    @if($teacher)
-                                        <div class="teacher-name-cell">
-                                            <span class="teacher-avatar">
-                                                @if($teacher->picture)
-                                                    <img src="{{ asset($teacher->picture) }}" alt="{{ $teacher->full_name }}">
-                                                @else
-                                                    {{ $teacherInitials }}
-                                                @endif
-                                            </span>
-                                            <div>
-                                                <span class="d-block fw-semibold">{{ $teacher->full_name }}</span>
-                                                <span class="text-xs text-secondary-light">{{ $teacher->employee_id }}</span>
-                                            </div>
+                                    @if($teachers->isNotEmpty())
+                                        <div class="d-flex flex-column gap-10">
+                                            @foreach($teachers as $teacher)
+                                                @php
+                                                    $teacherInitials = strtoupper(substr((string) $teacher->firstname, 0, 1).substr((string) $teacher->surname, 0, 1));
+                                                @endphp
+                                                <div class="teacher-name-cell">
+                                                    <span class="teacher-avatar">
+                                                        @if($teacher->picture)
+                                                            <img src="{{ asset($teacher->picture) }}" alt="{{ $teacher->full_name }}">
+                                                        @else
+                                                            {{ $teacherInitials }}
+                                                        @endif
+                                                    </span>
+                                                    <div>
+                                                        <span class="d-block fw-semibold">{{ $teacher->full_name }}</span>
+                                                        <span class="text-xs text-secondary-light">{{ $teacher->employee_id }}{{ $teacher->position ? ' · '.$teacher->position : '' }}</span>
+                                                    </div>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     @else
                                         <span class="teacher-empty-pill">
@@ -270,8 +274,8 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($teacher)
-                                        <span class="position-badge">{{ $teacher->position }}</span>
+                                    @if($teachers->isNotEmpty())
+                                        <span class="position-badge">{{ $teachers->count() }}</span>
                                     @else
                                         <span class="text-secondary-light">—</span>
                                     @endif
@@ -288,7 +292,7 @@
                                         class="btn btn-sm btn-outline-primary-600 assign-class-teacher-btn"
                                         data-url="{{ route('get-class-teacher-assignment', $class->id) }}">
                                         <i class="ri-user-shared-line"></i>
-                                        {{ $teacher ? 'Change Teacher' : 'Assign Teacher' }}
+                                        {{ $teachers->isNotEmpty() ? 'Manage Teachers' : 'Assign Teacher' }}
                                     </button>
                                 </td>
                             </tr>
@@ -310,8 +314,44 @@
         const modalEl = document.getElementById('assignClassTeacherModal');
         const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
 
-        function setTeacherAvatar(initials) {
-            document.getElementById('currentTeacherAvatar').textContent = initials || 'T';
+        function teacherInitials(name) {
+            return (name || 'T').split(' ').map(function (part) {
+                return part.charAt(0);
+            }).join('').slice(0, 2).toUpperCase();
+        }
+
+        function renderTeachers(teachers) {
+            const list = $('#currentTeachersList');
+            list.empty();
+
+            if (!teachers || !teachers.length) {
+                $('#currentTeachersBox').hide();
+                return;
+            }
+
+            teachers.forEach(function (teacher) {
+                const meta = [teacher.position, teacher.employee_id].filter(Boolean).join(' • ');
+                const avatar = teacher.picture
+                    ? '<img src="' + teacher.picture + '" alt="">'
+                    : teacherInitials(teacher.name);
+
+                list.append(
+                    '<div class="d-flex align-items-center justify-content-between gap-12">' +
+                        '<div class="d-flex align-items-center gap-12">' +
+                            '<span class="teacher-mini-avatar">' + avatar + '</span>' +
+                            '<div>' +
+                                '<span class="d-block fw-semibold text-sm">' + teacher.name + '</span>' +
+                                '<span class="d-block text-xs text-secondary-light">' + meta + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger-600 remove-class-teacher-btn" data-staff-id="' + teacher.id + '" data-staff-name="' + teacher.name + '">' +
+                            '<i class="ri-user-unfollow-line"></i> Remove' +
+                        '</button>' +
+                    '</div>'
+                );
+            });
+
+            $('#currentTeachersBox').show();
         }
 
         $('body').on('click', '.assign-class-teacher-btn', function () {
@@ -320,24 +360,24 @@
             $.get(url, function (data) {
                 $('#assign_class_id').val(data.id);
                 $('#unassign_class_id').val(data.id);
+                $('#unassign_staff_id').val('');
                 $('#assign_class_name').text(data.name);
                 $('#assign_class_name_inline').text(data.name);
-                $('#assign_staff_id').val(data.class_teacher_id || '');
+                $('#assign_staff_id').val('');
 
-                if (data.teacher) {
-                    $('#currentTeacherBox').show();
-                    $('#currentTeacherName').text(data.teacher.name);
-                    $('#currentTeacherMeta').text(data.teacher.position + ' • ' + data.teacher.employee_id);
-                    $('#unassignClassTeacherBtn').show();
-                    setTeacherAvatar((data.teacher.name || 'T').split(' ').map(function (part) {
-                        return part.charAt(0);
-                    }).join('').slice(0, 2).toUpperCase());
-                } else {
-                    $('#currentTeacherBox').hide();
-                    $('#currentTeacherName').text('');
-                    $('#currentTeacherMeta').text('');
-                    $('#unassignClassTeacherBtn').hide();
-                }
+                const assignedIds = (data.teachers || []).map(function (teacher) {
+                    return String(teacher.id);
+                });
+
+                $('#assign_staff_id option').each(function () {
+                    const value = $(this).val();
+                    if (!value) {
+                        return;
+                    }
+                    $(this).prop('disabled', assignedIds.indexOf(value) !== -1);
+                });
+
+                renderTeachers(data.teachers || []);
 
                 if (modal) {
                     modal.show();
@@ -345,15 +385,21 @@
             });
         });
 
-        $('#unassignClassTeacherBtn').on('click', function () {
+        $('body').on('click', '.remove-class-teacher-btn', function () {
+            const staffId = $(this).data('staff-id');
+            const staffName = $(this).data('staff-name') || 'this teacher';
+
             confirmAppAction({
                 title: 'Remove this class teacher?',
-                text: 'The teacher will be unassigned from this class.',
+                text: staffName + ' will be unassigned from this class.',
                 confirmButtonText: 'Yes, remove',
             }).then(function (ok) {
-                if (ok) {
-                    $('#unassignClassTeacherForm').trigger('submit');
+                if (!ok) {
+                    return;
                 }
+
+                $('#unassign_staff_id').val(staffId);
+                $('#unassignClassTeacherForm').trigger('submit');
             });
         });
     })();

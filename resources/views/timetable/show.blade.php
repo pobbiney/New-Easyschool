@@ -50,7 +50,7 @@
             ['label' => $class->name, 'url' => null, 'active' => true],
         ],
         'title' => $class->name.' timetable',
-        'subtitle' => ($class->category?->name ?: 'Class').($class->classTeacher ? ' · '.$class->classTeacher->full_name : ''),
+        'subtitle' => ($class->category?->name ?: 'Class').($class->classTeacherNames() !== '' ? ' · '.$class->classTeacherNames() : ''),
         'actions' => view('timetable.partials._show-actions', compact('class', 'period', 'printQuery'))->render(),
     ])
 

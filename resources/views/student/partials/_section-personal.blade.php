@@ -84,8 +84,8 @@
         @error('gender') <small class="text-danger">{{ $message }}</small> @enderror
     </div>
     <div class="col-xxl-3 col-xl-4 col-sm-6">
-        <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Date of Birth <span class="text-danger-600">*</span></label>
-        <input type="text" name="dob" class="form-control datepicker wizard-required" value="{{ old('dob', $student?->dob ?? '') }}" placeholder="Enter date of birth">
+        <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Date of Birth</label>
+        <input type="text" name="dob" class="form-control datepicker" value="{{ old('dob', $student?->dob ?? '') }}" placeholder="Enter date of birth">
         @error('dob') <small class="text-danger">{{ $message }}</small> @enderror
     </div>
     <div class="col-xxl-3 col-xl-4 col-sm-6">

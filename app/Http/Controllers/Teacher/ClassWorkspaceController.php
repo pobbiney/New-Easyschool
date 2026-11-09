@@ -31,7 +31,7 @@ class ClassWorkspaceController extends Controller implements HasMiddleware
             ->count();
 
         return view('teacher.class-workspace', [
-            'schoolClass' => $class->load('classTeacher'),
+            'schoolClass' => $class->load('classTeachers'),
             'students' => $students,
             'isHomeroom' => $isHomeroom,
             'stats' => [

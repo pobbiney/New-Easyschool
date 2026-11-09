@@ -134,8 +134,10 @@
                                 @endif
                             </td>
                             <td>
-                                @if($teacher->assignedClass)
-                                    <span class="ac-pill ac-pill-teal"><i class="ri-home-smile-line"></i> {{ $teacher->assignedClass->name }}</span>
+                                @if($teacher->assignedClasses->isNotEmpty())
+                                    @foreach($teacher->assignedClasses as $homeroomClass)
+                                        <span class="ac-pill ac-pill-teal"><i class="ri-home-smile-line"></i> {{ $homeroomClass->name }}</span>
+                                    @endforeach
                                 @else
                                     <span class="ac-pill ac-pill-slate">Unassigned</span>
                                 @endif

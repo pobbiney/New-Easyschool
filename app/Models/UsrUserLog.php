@@ -35,7 +35,6 @@ class UsrUserLog extends Model
 	];
 
 	protected $fillable = [
-		'id',
 		'user_id',
 		'login_date',
 		'logout_date',

@@ -14,7 +14,6 @@ class SchoolClass extends Model
         'class_category_id',
         'status',
         'promotion_minimum_mark',
-        'class_teacher_id',
         'created_by',
         'updated_by',
     ];
@@ -29,9 +28,25 @@ class SchoolClass extends Model
         return $this->hasMany(Student::class, 'school_class_id');
     }
 
-    public function classTeacher()
+    public function classTeacherAssignments()
     {
-        return $this->belongsTo(Staff::class, 'class_teacher_id');
+        return $this->hasMany(ClassTeacherAssignment::class, 'school_class_id');
+    }
+
+    public function classTeachers()
+    {
+        return $this->belongsToMany(Staff::class, 'class_teacher_assignments', 'school_class_id', 'staff_id')
+            ->withTimestamps()
+            ->withPivot(['created_by', 'updated_by']);
+    }
+
+    public function classTeacherNames(): string
+    {
+        $names = $this->relationLoaded('classTeachers')
+            ? $this->classTeachers->map(fn (Staff $teacher) => $teacher->full_name)->filter()->values()
+            : $this->classTeachers()->get()->map(fn (Staff $teacher) => $teacher->full_name)->filter()->values();
+
+        return $names->implode(', ');
     }
 
     /**

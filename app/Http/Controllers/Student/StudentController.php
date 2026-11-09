@@ -258,7 +258,7 @@ class StudentController extends Controller
             'firstname' => 'required',
             'surname' => 'required',
             'gender' => 'required',
-            'dob' => 'required',
+            'dob' => 'nullable|string|max:40',
             'phone' => 'nullable|string|max:30',
         ];
     }
@@ -294,7 +294,7 @@ class StudentController extends Controller
         $student->surname = trim($request->surname);
         $student->category = $this->cleanInput($request->category);
         $student->gender = trim($request->gender);
-        $student->dob = trim($request->dob);
+        $student->dob = $this->cleanInput($request->dob) ?? '';
         $student->phone = $this->cleanInput($request->phone);
         $student->email = $this->cleanInput($request->email);
 
