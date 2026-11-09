@@ -35,7 +35,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-secondary-light d-block mt-8">Only staff with the Teacher user category are listed. A class can have more than one teacher.</small>
+                        <small class="text-secondary-light d-block mt-8">All active staff are listed. A class can have more than one teacher.</small>
                     </div>
                 </div>
                 <div class="modal-footer border-top px-24 py-16 d-flex justify-content-end gap-2">
