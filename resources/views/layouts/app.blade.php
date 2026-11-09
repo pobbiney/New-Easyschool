@@ -604,9 +604,9 @@ body.swal2-toast-shown .swal2-container .swal2-popup {
   <div class="">
     <div class="sidebar-logo d-flex align-items-center justify-content-between">
       <a href="{{ route('dashboard', [], false) }}" class="">
-        <img src="{{asset('assets/images/logo.png')}}" alt="site logo" class="light-logo">
-        <img src="{{asset('assets/images/logo-light.png')}}" alt="site logo" class="dark-logo">
-        <img src="{{asset('assets/images/logo-icon.png')}}" alt="site logo" class="logo-icon">
+        <img src="{{asset('assets/images/logo.png')}}" alt="EasySchool" class="light-logo">
+        <img src="{{asset('assets/images/logo-light.png')}}" alt="EasySchool" class="dark-logo">
+        <img src="{{asset('assets/images/logo-icon.png')}}" alt="EasySchool" class="logo-icon">
       </a>
       <button type="button" class="text-xxl d-xl-flex d-none line-height-1 sidebar-toggle text-neutral-500"
         aria-label="Collapse Sidebar">

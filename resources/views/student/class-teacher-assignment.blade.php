@@ -230,7 +230,7 @@
                     <tbody>
                         @foreach($schoolClasses as $class)
                             @php
-                                $teachers = $class->classTeachers;
+                                $assignedTeachers = $class->classTeachers;
                                 $initials = strtoupper(substr($class->name, 0, 2));
                             @endphp
                             <tr>
@@ -245,9 +245,9 @@
                                     </div>
                                 </td>
                                 <td>
-                                    @if($teachers->isNotEmpty())
+                                    @if($assignedTeachers->isNotEmpty())
                                         <div class="d-flex flex-column gap-10">
-                                            @foreach($teachers as $teacher)
+                                            @foreach($assignedTeachers as $teacher)
                                                 @php
                                                     $teacherInitials = strtoupper(substr((string) $teacher->firstname, 0, 1).substr((string) $teacher->surname, 0, 1));
                                                 @endphp
@@ -274,8 +274,8 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @if($teachers->isNotEmpty())
-                                        <span class="position-badge">{{ $teachers->count() }}</span>
+                                    @if($assignedTeachers->isNotEmpty())
+                                        <span class="position-badge">{{ $assignedTeachers->count() }}</span>
                                     @else
                                         <span class="text-secondary-light">—</span>
                                     @endif
@@ -292,7 +292,7 @@
                                         class="btn btn-sm btn-outline-primary-600 assign-class-teacher-btn"
                                         data-url="{{ route('get-class-teacher-assignment', $class->id) }}">
                                         <i class="ri-user-shared-line"></i>
-                                        {{ $teachers->isNotEmpty() ? 'Manage Teachers' : 'Assign Teacher' }}
+                                        {{ $assignedTeachers->isNotEmpty() ? 'Manage Teachers' : 'Assign Teacher' }}
                                     </button>
                                 </td>
                             </tr>

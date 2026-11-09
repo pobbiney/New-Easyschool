@@ -4,7 +4,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in</title>
+<title>Sign in — EasySchool</title>
+<link rel="icon" type="image/png" href="{{ asset('assets/images/favicon.png') }}" sizes="16x16">
 <link rel="stylesheet" href="{{ asset('assets/css/lib/bootstrap.min.css') }}">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -204,21 +205,17 @@
   }
 
   .logo {
-    width: 80px;
-    height: 80px;
+    width: 88px;
+    height: 88px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(37,161,148,0.18), rgba(37,161,148,0.03));
-    border: 1.5px solid #25A194;
+    background: transparent;
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 18px;
-    padding: 10px;
+    margin: 0 auto 14px;
+    padding: 0;
     overflow: hidden;
-    font-family: 'Sora', 'Segoe UI', system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 24px;
-    color: #25A194;
   }
 
   .logo img {
@@ -422,9 +419,9 @@
         
       <div class="card-border-glow"></div>
       <div class="card">
-        <div class="logo"><img src="{{ asset('assets/images/logo-light.png') }}" alt="EasySchool"></div>
-        <h2>Welcome back!</h2>
-        <p class="sub">Sign in to continue to your dashboard</p>
+        <div class="logo"><img src="{{ asset('assets/images/logo-icon.png') }}" alt="EasySchool"></div>
+        <h2>EasySchool</h2>
+        <p class="sub">Welcome back — sign in to continue</p>
          @if (session('login_success_message'))
             <p class="alert" align="center" style="background:rgba(37,161,148,0.15);border:1px solid rgba(37,161,148,0.35);color:#5eead4;">{{ session('login_success_message') }}</p>
         @endif

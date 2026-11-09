@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parent Sign In — EasySchool</title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/images/favicon.png') }}" sizes="16x16">
     <link rel="stylesheet" href="{{ asset('assets/css/remixicon.css') }}">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -356,9 +357,9 @@
     <main class="pl-main">
         <div class="pl-card">
             <div class="pl-card-head">
-                <img src="{{ asset('assets/images/logo.png') }}" alt="EasySchool" class="pl-logo">
-                <h2>Welcome back</h2>
-                <p>Sign in with your guardian phone number</p>
+                <img src="{{ asset('assets/images/logo-icon.png') }}" alt="EasySchool" class="pl-logo">
+                <h2>EasySchool</h2>
+                <p>Welcome back — sign in with your guardian phone number</p>
             </div>
 
             @if(session('login_error_message'))
