@@ -309,13 +309,13 @@ class StudentController extends Controller
     private function parentValidationRules()
     {
         return [
-            'father_name' => 'required',
-            'father_phone' => 'required',
-            'mother_name' => 'required',
-            'mother_phone' => 'required',
-            'guardian_type' => 'required',
-            'guardian_name' => 'required',
-            'guardian_phone' => 'required',
+            'father_name' => 'nullable|string|max:120',
+            'father_phone' => 'nullable|string|max:30',
+            'mother_name' => 'nullable|string|max:120',
+            'mother_phone' => 'nullable|string|max:30',
+            'guardian_type' => 'nullable|string|max:40',
+            'guardian_name' => 'nullable|string|max:120',
+            'guardian_phone' => 'nullable|string|max:30',
         ];
     }
 

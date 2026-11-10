@@ -219,6 +219,10 @@ class UserAccessService
             'update-user-category-process' => ['user-categories'],
             'delete-user-category-process' => ['user-categories'],
 
+            'parent-accounts-student-search' => ['parent-accounts'],
+            'parent-accounts-process' => ['parent-accounts'],
+            'parent-accounts-reset-process' => ['parent-accounts'],
+
             'save-student-draft-process' => ['add-student'],
             'download-student-bulk-template' => ['add-student'],
             'bulk-import-students-process' => ['add-student'],

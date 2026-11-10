@@ -81,7 +81,7 @@
             <div class="card border-0 shadow-none">
                 <div class="card-header border-bottom bg-base py-16 px-0">
                     <h6 class="text-lg fw-semibold mb-0">Step 2 — Parent & Guardian Information</h6>
-                    <p class="text-sm text-secondary-light mb-0 mt-4">Add father, mother, and guardian contact details.</p>
+                    <p class="text-sm text-secondary-light mb-0 mt-4">Father, mother, and guardian details are optional. Add a guardian phone if you want a parent portal account.</p>
                 </div>
                 <div class="card-body px-0 pt-20">
                     @include('student.partials._section-parent')

@@ -7,6 +7,7 @@ use App\Http\Controllers\Course\CourseTeacherController;
 use App\Http\Controllers\Course\CourseRegistrationController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\UserManagement\UserManagementController;
+use App\Http\Controllers\UserManagement\AdminParentAccountController;
 use App\Http\Controllers\Staff\StaffController;
 use App\Http\Controllers\Hr\DashboardController as HrDashboardController;
 use App\Http\Controllers\Hr\DepartmentController;
@@ -221,6 +222,13 @@ Route::post('logout-authentication-process',[DashboardController::class,'logoutA
         Route::post('delete-user-category-process', 'deleteUserCategory')->name('delete-user-category-process');
         Route::get('system-access', 'getSystemAccessView')->name('system-access');
         Route::post('system-access-process', 'saveSystemAccess')->name('system-access-process');
+    });
+
+   Route::controller(AdminParentAccountController::class)->group(function () {
+        Route::get('parent-accounts', 'index')->name('parent-accounts');
+        Route::get('parent-accounts-student-search', 'searchStudents')->name('parent-accounts-student-search');
+        Route::post('parent-accounts-process', 'store')->name('parent-accounts-process');
+        Route::post('parent-accounts-reset-process', 'resetPassword')->name('parent-accounts-reset-process');
     });
 /* End UserManagementController*/
 

@@ -118,8 +118,9 @@ class StudentBulkImportService
         $help->setCellValue('A6', '4. gender must be Male or Female.');
         $help->setCellValue('A7', '5. guardian_type must be Father, Mother, or Others.');
         $help->setCellValue('A8', '6. Academic year and term are selected on the upload form and applied to every row.');
-        $help->setCellValue('A9', '7. Required columns: firstname, surname, gender, class_name, father_name, father_phone, mother_name, mother_phone, guardian_type, guardian_name, guardian_phone.');
-        $help->setCellValue('A10', '8. Maximum '.self::MAX_ROWS.' students per file.');
+        $help->setCellValue('A9', '7. Required columns: firstname, surname, gender, class_name. Parent/guardian columns are optional.');
+        $help->setCellValue('A10', '8. Parent portal accounts are created only when guardian_phone is provided.');
+        $help->setCellValue('A11', '9. Maximum '.self::MAX_ROWS.' students per file.');
 
         $classesSheet = $spreadsheet->createSheet();
         $classesSheet->setTitle('Classes');
@@ -179,11 +180,7 @@ class StudentBulkImportService
      */
     private function importRow(array $row, int $rowNumber, AcademicYear $academicYear, int $academicTermId, $classes): void
     {
-        $required = [
-            'firstname', 'surname', 'gender', 'class_name',
-            'father_name', 'father_phone', 'mother_name', 'mother_phone',
-            'guardian_type', 'guardian_name', 'guardian_phone',
-        ];
+        $required = ['firstname', 'surname', 'gender', 'class_name'];
 
         foreach ($required as $field) {
             if ($this->blank($row[$field] ?? null)) {
@@ -196,9 +193,12 @@ class StudentBulkImportService
             throw new \RuntimeException('gender must be Male or Female.');
         }
 
-        $guardianType = $this->normalizeGuardianType($row['guardian_type']);
-        if (! $guardianType) {
-            throw new \RuntimeException('guardian_type must be Father, Mother, or Others.');
+        $guardianType = null;
+        if (! $this->blank($row['guardian_type'] ?? null)) {
+            $guardianType = $this->normalizeGuardianType($row['guardian_type']);
+            if (! $guardianType) {
+                throw new \RuntimeException('guardian_type must be Father, Mother, or Others.');
+            }
         }
 
         $classKey = $this->normalizeKey($row['class_name']);
@@ -233,15 +233,15 @@ class StudentBulkImportService
         $student->dob = $this->nullable($row['dob'] ?? null) ?? '';
         $student->phone = $this->nullable($row['phone'] ?? null) ?? '';
         $student->email = $this->nullable($row['email'] ?? null);
-        $student->father_name = trim($row['father_name']);
-        $student->father_phone = trim($row['father_phone']);
+        $student->father_name = $this->nullable($row['father_name'] ?? null);
+        $student->father_phone = $this->nullable($row['father_phone'] ?? null);
         $student->father_occupation = $this->nullable($row['father_occupation'] ?? null);
-        $student->mother_name = trim($row['mother_name']);
-        $student->mother_phone = trim($row['mother_phone']);
+        $student->mother_name = $this->nullable($row['mother_name'] ?? null);
+        $student->mother_phone = $this->nullable($row['mother_phone'] ?? null);
         $student->mother_occupation = $this->nullable($row['mother_occupation'] ?? null);
         $student->guardian_type = $guardianType;
-        $student->guardian_name = trim($row['guardian_name']);
-        $student->guardian_phone = trim($row['guardian_phone']);
+        $student->guardian_name = $this->nullable($row['guardian_name'] ?? null);
+        $student->guardian_phone = $this->nullable($row['guardian_phone'] ?? null);
         $student->guardian_email = $this->nullable($row['guardian_email'] ?? null);
         $student->guardian_occupation = $this->nullable($row['guardian_occupation'] ?? null);
         $student->guardian_address = $this->nullable($row['guardian_address'] ?? null);
