@@ -17,7 +17,14 @@ class SchoolSetting extends Model
         'logo_path',
         'default_academic_year_id',
         'default_academic_term_id',
+        'current_term_vacation_date',
+        'next_term_start_date',
         'updated_by',
+    ];
+
+    protected $casts = [
+        'current_term_vacation_date' => 'date',
+        'next_term_start_date' => 'date',
     ];
 
     public static function current()

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AcademicYear;
+use App\Models\AcademicTerm;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\StudentPromotionLog;
@@ -118,6 +119,14 @@ class PromotionService
         int $termId,
         bool $allowManagementOverride = false
     ): array {
+        if ((int) AcademicTerm::query()->whereKey($termId)->value('sort_order') !== 3) {
+            return [
+                'promoted' => 0,
+                'skipped' => [],
+                'message' => 'Students can only be promoted in third term.',
+            ];
+        }
+
         $nextClass = $fromClass->nextActiveClass();
 
         if (! $nextClass) {
@@ -290,12 +299,12 @@ class PromotionService
         ?bool $isPromoted,
         ?SchoolClass $nextClass
     ): string {
-        if (! $nextClass) {
-            return 'final_class';
+        if ($isPromoted === null) {
+            return 'not_due';
         }
 
-        if ($minimum === null) {
-            return 'eligible';
+        if (! $nextClass) {
+            return 'final_class';
         }
 
         if ($aggregateTotal === null || $isPromoted === false) {

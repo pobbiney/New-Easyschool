@@ -737,6 +737,18 @@
                 </select>
                 @error('default_academic_term_id') <small class="text-danger">{{ $message }}</small> @enderror
             </div>
+            <div class="session-field">
+                <label for="current_term_vacation_date">Current Term Vacation Date</label>
+                <input type="date" id="current_term_vacation_date" name="current_term_vacation_date" class="session-select"
+                    value="{{ old('current_term_vacation_date', $school->current_term_vacation_date?->format('Y-m-d')) }}">
+                @error('current_term_vacation_date') <small class="text-danger">{{ $message }}</small> @enderror
+            </div>
+            <div class="session-field">
+                <label for="next_term_start_date">Next Term Start Date</label>
+                <input type="date" id="next_term_start_date" name="next_term_start_date" class="session-select"
+                    value="{{ old('next_term_start_date', $school->next_term_start_date?->format('Y-m-d')) }}">
+                @error('next_term_start_date') <small class="text-danger">{{ $message }}</small> @enderror
+            </div>
         </div>
     </div>
 
@@ -924,7 +936,7 @@
             $('.firm-tab[data-tab="contact"]').addClass('active');
             $('.firm-tab-pane').removeClass('active');
             $('#tab-contact').addClass('active');
-        @elseif($errors->has('default_academic_year_id') || $errors->has('default_academic_term_id'))
+        @elseif($errors->has('default_academic_year_id') || $errors->has('default_academic_term_id') || $errors->has('current_term_vacation_date') || $errors->has('next_term_start_date'))
             document.getElementById('academicSessionSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         @else
             $('.firm-tab').removeClass('active');

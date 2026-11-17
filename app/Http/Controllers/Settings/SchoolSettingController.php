@@ -39,6 +39,8 @@ class SchoolSettingController extends Controller
             'website' => 'nullable|string|max:255',
             'motto' => 'nullable|string|max:255',
             'logo' => 'nullable|image|max:2048',
+            'current_term_vacation_date' => 'nullable|date_format:Y-m-d',
+            'next_term_start_date' => ['nullable', 'date_format:Y-m-d', ...($request->filled('current_term_vacation_date') ? ['after:current_term_vacation_date'] : [])],
             'default_academic_year_id' => [
                 'required',
                 'exists:academic_years,id',
@@ -68,6 +70,8 @@ class SchoolSettingController extends Controller
         $school->website = $request->website;
         $school->default_academic_year_id = $request->default_academic_year_id;
         $school->default_academic_term_id = $request->default_academic_term_id;
+        $school->current_term_vacation_date = $request->input('current_term_vacation_date');
+        $school->next_term_start_date = $request->input('next_term_start_date');
         $school->updated_by = Auth::id();
 
         if ($request->hasFile('logo')) {

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AcademicAssessment;
+use App\Models\AcademicTerm;
 use App\Models\AssessmentType;
 use App\Models\ClassAttendance;
 use App\Models\ClassCourseAssessmentMark;
@@ -205,8 +206,11 @@ class GradebookService
             ->sortBy('course_name')
             ->values();
 
-        $promotion = $this->resolvePromotion($student, $subjectGrades);
-        $promotion = $this->applyPromotionLogLabel($student, $yearId, $termId, $promotion);
+        $termOrder = (int) AcademicTerm::query()->whereKey($termId)->value('sort_order');
+        $promotion = $this->resolvePromotion($student, $subjectGrades, $termOrder);
+        if ($promotion['is_promoted'] === true) {
+            $promotion = $this->applyPromotionLogLabel($student, $yearId, $termId, $promotion);
+        }
         $remarks = StudentRemark::query()
             ->where('student_id', $student->id)
             ->where('academic_year_id', $yearId)
@@ -237,7 +241,7 @@ class GradebookService
     /**
      * Sum all subject total scores and compare against the class promotion minimum.
      */
-    private function resolvePromotion(Student $student, Collection $subjectGrades): array
+    private function resolvePromotion(Student $student, Collection $subjectGrades, int $termOrder): array
     {
         $schoolClass = $student->schoolClass;
 
@@ -251,18 +255,18 @@ class GradebookService
             : null;
 
         $minimum = $schoolClass->promotion_minimum_mark;
+        if ($termOrder !== 3 || $minimum === null) {
+            return $this->emptyPromotionResult($aggregateTotal, $minimum);
+        }
+
         $nextClass = $schoolClass->nextActiveClass();
 
         if (! $nextClass) {
-            if ($minimum !== null && $aggregateTotal !== null && $aggregateTotal < $minimum) {
+            if ($aggregateTotal !== null && $aggregateTotal < $minimum) {
                 return $this->emptyPromotionResult($aggregateTotal, $minimum, false, null, 'Repeat');
             }
 
             return $this->emptyPromotionResult($aggregateTotal, $minimum);
-        }
-
-        if ($minimum === null) {
-            return $this->emptyPromotionResult($aggregateTotal, null, true, $nextClass->name, $nextClass->name);
         }
 
         if ($aggregateTotal === null) {

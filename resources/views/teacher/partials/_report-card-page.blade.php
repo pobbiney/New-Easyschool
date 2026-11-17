@@ -253,7 +253,7 @@
         <div class="terminal-report__info-row">
             <div class="terminal-report__field">
                 <span class="terminal-report__label">Number on Roll:</span>
-                <span class="terminal-report__value">{{ $report['roll_number'] ?? '' }}</span>
+                <span class="terminal-report__value">{{ $report['students_on_roll'] ?? '' }}</span>
             </div>
             <div class="terminal-report__field">
                 <span class="terminal-report__label">Position in Class:</span>
@@ -275,11 +275,11 @@
         <div class="terminal-report__info-row">
             <div class="terminal-report__field">
                 <span class="terminal-report__label">Next Term Begins:</span>
-                <span class="terminal-report__value"></span>
+                <span class="terminal-report__value">{{ $school?->next_term_start_date?->format('d M Y') }}</span>
             </div>
             <div class="terminal-report__field">
                 <span class="terminal-report__label">Vacation Date:</span>
-                <span class="terminal-report__value"></span>
+                <span class="terminal-report__value">{{ $school?->current_term_vacation_date?->format('d M Y') }}</span>
             </div>
         </div>
     </div>
