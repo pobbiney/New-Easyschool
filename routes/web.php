@@ -448,6 +448,8 @@ Route::post('logout-authentication-process',[DashboardController::class,'logoutA
    Route::controller(AssessmentController::class)->group(function () {
         Route::get('teacher-assessments', 'hub')->name('teacher-assessments');
         Route::get('teacher-assessment-records', 'records')->name('teacher-assessment-records');
+        Route::get('teacher/students/{student}/preschool-assessment', 'preschoolStudentAssessment')->name('teacher-preschool-student-assessment');
+        Route::post('teacher/students/{student}/preschool-assessment', 'savePreschoolStudentAssessment')->name('teacher-preschool-student-assessment-save');
         Route::get('teacher/assessment-setup-options', 'setupOptions')->name('teacher-assessment-setup-options');
         Route::get('teacher/classes/{class}/assessments', 'classIndex')->name('teacher-class-assessments');
         Route::get('teacher/classes/{class}/assessment-records', 'classRecords')->name('teacher-class-assessment-records');

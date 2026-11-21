@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Teacher;
 use App\Http\Controllers\Controller;
 use App\Models\AcademicTerm;
 use App\Models\AcademicYear;
+use App\Models\PreschoolAssessment;
 use App\Models\SchoolClass;
 use App\Models\SchoolSetting;
 use App\Models\Student;
 use App\Services\GradebookService;
+use App\Services\PreschoolAssessmentService;
 use App\Services\TeacherAccessService;
 use App\Support\AcademicPeriodDefaults;
 use Illuminate\Http\Request;
@@ -18,7 +20,8 @@ class GradebookController extends Controller implements HasMiddleware
 {
     public function __construct(
         private TeacherAccessService $teacherAccess,
-        private GradebookService $gradebook
+        private GradebookService $gradebook,
+        private PreschoolAssessmentService $preschoolAssessments
     ) {}
 
     public static function middleware(): array
@@ -103,7 +106,10 @@ class GradebookController extends Controller implements HasMiddleware
         $yearId = AcademicPeriodDefaults::yearId($request);
         $termId = AcademicPeriodDefaults::termId($request);
 
-        $report = $this->gradebook->studentReportCard($student->load('schoolClass'), $yearId, $termId);
+        $student->load('schoolClass.category');
+        $report = $this->gradebook->studentReportCard($student, $yearId, $termId);
+        $preschoolContext = $this->preschoolReportContext($student->schoolClass, $yearId, $termId);
+        $report = $this->withPreschoolReportData($report, $preschoolContext);
 
         return view('teacher.print-report-card', [
             'report' => $report,
@@ -121,8 +127,14 @@ class GradebookController extends Controller implements HasMiddleware
         $yearId = AcademicPeriodDefaults::yearId($request);
         $termId = AcademicPeriodDefaults::termId($request);
 
+        $class->loadMissing('category');
         $students = $this->teacherAccess->studentsForClass($class->id);
-        $reports = $students->map(fn (Student $student) => $this->gradebook->studentReportCard($student, $yearId, $termId));
+        $preschoolContext = $this->preschoolReportContext($class, $yearId, $termId);
+        $reports = $students->map(function (Student $student) use ($yearId, $termId, $preschoolContext) {
+            $report = $this->gradebook->studentReportCard($student, $yearId, $termId);
+
+            return $this->withPreschoolReportData($report, $preschoolContext);
+        });
 
         return view('teacher.print-class-report-cards', [
             'reports' => $reports,
@@ -131,6 +143,49 @@ class GradebookController extends Controller implements HasMiddleware
             'printedAt' => now(),
             'period' => AcademicPeriodDefaults::forFrontend($request),
         ]);
+    }
+
+    private function preschoolReportContext(
+        ?SchoolClass $schoolClass,
+        ?int $yearId,
+        ?int $termId
+    ): array {
+        if (! $schoolClass || ! $this->preschoolAssessments->isPreschoolClass($schoolClass)) {
+            return ['is_preschool' => false];
+        }
+
+        $assessments = ($yearId && $termId)
+            ? PreschoolAssessment::query()
+                ->where('school_class_id', $schoolClass->id)
+                ->where('academic_year_id', $yearId)
+                ->where('academic_term_id', $termId)
+                ->get()
+                ->keyBy('student_id')
+            : collect();
+
+        return [
+            'is_preschool' => true,
+            'courses' => $this->preschoolAssessments->coursesForAssessment($schoolClass, $yearId, $termId),
+            'rating_options' => $this->preschoolAssessments->ratingOptions(),
+            'assessments' => $assessments,
+        ];
+    }
+
+    private function withPreschoolReportData(array $report, array $context): array
+    {
+        if (! ($context['is_preschool'] ?? false)) {
+            return [...$report, 'is_preschool' => false];
+        }
+
+        $assessment = $context['assessments']->get($report['student']->id);
+
+        return [
+            ...$report,
+            'is_preschool' => true,
+            'preschool_courses' => $context['courses'],
+            'preschool_rating_options' => $context['rating_options'],
+            'preschool_ratings' => $assessment?->ratings ?? [],
+        ];
     }
 
     private function gradebookPageData(Request $request): array

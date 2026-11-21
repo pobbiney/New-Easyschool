@@ -300,6 +300,8 @@ class UserAccessService
             'teacher-class-workspace' => ['teacher-dashboard'],
             'teacher-course-workspace' => ['teacher-dashboard'],
             'teacher-assessment-setup-options' => ['teacher-assessments', 'teacher-dashboard'],
+            'teacher-preschool-student-assessment' => ['teacher-assessments', 'teacher-dashboard'],
+            'teacher-preschool-student-assessment-save' => ['teacher-assessments', 'teacher-dashboard'],
             'teacher-class-assessments' => ['teacher-assessments', 'teacher-dashboard'],
             'teacher-class-assessment-records' => ['teacher-assessments', 'teacher-assessment-records', 'teacher-dashboard'],
             'teacher-class-assessment-marks' => ['teacher-assessments', 'teacher-dashboard'],

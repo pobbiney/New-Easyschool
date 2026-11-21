@@ -33,6 +33,11 @@
                     <option value="" disabled {{ old('course_category') ? '' : 'selected' }}>Choose category</option>
                     <option value="Subject" {{ old('course_category') == 'Subject' ? 'selected' : '' }}>Subject</option>
                     <option value="4RS" {{ old('course_category') == '4RS' ? 'selected' : '' }}>4RS</option>
+                    <option value="Language Activities" {{ old('course_category') == 'Language Activities' ? 'selected' : '' }}>Language Activities</option>
+                    <option value="Numeracy" {{ old('course_category') == 'Numeracy' ? 'selected' : '' }}>Numeracy</option>
+                    <option value="Creative - Arts" {{ old('course_category') == 'Creative - Arts' ? 'selected' : '' }}>Creative - Arts</option>
+                    <option value="Environmental Studies / Natural Science" {{ old('course_category') == 'Environmental Studies / Natural Science' ? 'selected' : '' }}>Environmental Studies / Natural Science</option>
+                    <option value="Psycho - Social Skills" {{ old('course_category') == 'Psycho - Social Skills' ? 'selected' : '' }}>Psycho - Social Skills</option>
                 </select>
                 @error('course_category') <small class="text-danger-600">{{ $message }}</small> @enderror
             </div>

@@ -28,6 +28,11 @@
                     <option value="" disabled>Choose category</option>
                     <option value="Subject">Subject</option>
                     <option value="4RS">4RS</option>
+                    <option value="Language Activities">Language Activities</option>
+                    <option value="Numeracy">Numeracy</option>
+                    <option value="Creative - Arts">Creative - Arts</option>
+                    <option value="Environmental Studies / Natural Science">Environmental Studies / Natural Science</option>
+                    <option value="Psycho - Social Skills">Psycho - Social Skills</option>
                 </select>
                 @error('course_category') <small class="text-danger-600">{{ $message }}</small> @enderror
             </div>

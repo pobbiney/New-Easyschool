@@ -320,16 +320,17 @@
         $('.my-sidebar').removeClass('active');
         $('.overlay').removeClass('active');
     });
-    $('.edit-sidebar-btn').on('click', function () {
-        $('.edit-sidebar').addClass('active');
-        $('.overlay').addClass('active');
-    });
     $('.close-edit-sidebar, .overlay').on('click', function () {
         $('.edit-sidebar').removeClass('active');
         $('.overlay').removeClass('active');
     });
 
-    $('body').on('click', '.show-class-edit', function () {
+    $('body').on('click', '.show-class-edit', function (event) {
+        event.preventDefault();
+
+        $('.edit-sidebar').addClass('active');
+        $('.overlay').addClass('active');
+
         $.get($(this).data('url'), function (data) {
             $('#edit_class_id').val(data.id);
             $('#edit_class_name').val(data.name);

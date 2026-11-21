@@ -12,9 +12,12 @@ use App\Models\ClassCourseAssessmentMark;
 use App\Models\Course;
 use App\Models\CourseTeachingAssignment;
 use App\Models\GradingScheme;
+use App\Models\PreschoolAssessment;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Services\AssessmentMarksService;
 use App\Services\GradingService;
+use App\Services\PreschoolAssessmentService;
 use App\Services\TeacherAccessService;
 use App\Support\AcademicPeriodDefaults;
 use Illuminate\Http\Request;
@@ -27,7 +30,8 @@ class AssessmentController extends Controller implements HasMiddleware
     public function __construct(
         private TeacherAccessService $teacherAccess,
         private GradingService $grading,
-        private AssessmentMarksService $assessmentMarks
+        private AssessmentMarksService $assessmentMarks,
+        private PreschoolAssessmentService $preschoolAssessments
     ) {}
 
     public static function middleware(): array
@@ -65,6 +69,117 @@ class AssessmentController extends Controller implements HasMiddleware
         return $this->renderIndex($request, $class, $course, 'records');
     }
 
+    public function preschoolStudentAssessment(Request $request, Student $student)
+    {
+        $staffId = $this->teacherAccess->staffId();
+        $student->loadMissing('schoolClass.category');
+
+        $schoolClass = $student->schoolClass;
+
+        if ($student->status !== 'Active'
+            || ! $schoolClass
+            || ! $this->preschoolAssessments->isPreschoolClass($schoolClass)
+            || ! $this->teacherAccess->ownsHomeroomClass($staffId, $schoolClass->id)) {
+            abort(403, 'You do not have access to create an assessment for this student.');
+        }
+
+        $yearId = AcademicPeriodDefaults::yearId($request);
+        $termId = AcademicPeriodDefaults::termId($request);
+        $assessment = ($yearId && $termId)
+            ? PreschoolAssessment::query()
+                ->where('student_id', $student->id)
+                ->where('academic_year_id', $yearId)
+                ->where('academic_term_id', $termId)
+                ->first()
+            : null;
+
+        $skills = $this->preschoolAssessments->coursesForAssessment($schoolClass, $yearId, $termId);
+
+        return view('teacher.preschool-student-assessment', [
+            'student' => $student,
+            'schoolClass' => $schoolClass,
+            'assessment' => $assessment,
+            'skills' => $skills,
+            'ratingOptions' => $this->preschoolAssessments->ratingOptions(),
+            ...$this->assessmentPageData($request),
+        ]);
+    }
+
+    public function savePreschoolStudentAssessment(Request $request, Student $student)
+    {
+        $staffId = $this->teacherAccess->staffId();
+        $student->loadMissing('schoolClass.category');
+        $schoolClass = $student->schoolClass;
+
+        if ($student->status !== 'Active'
+            || ! $schoolClass
+            || ! $this->preschoolAssessments->isPreschoolClass($schoolClass)
+            || ! $this->teacherAccess->ownsHomeroomClass($staffId, $schoolClass->id)) {
+            abort(403, 'You do not have access to assess this student.');
+        }
+
+        $period = $request->validate([
+            'academic_year_id' => 'required|exists:academic_years,id',
+            'academic_term_id' => 'required|exists:academic_terms,id',
+        ]);
+
+        $skills = $this->preschoolAssessments->coursesForAssessment(
+            $schoolClass,
+            (int) $period['academic_year_id'],
+            (int) $period['academic_term_id']
+        );
+        $skillKeys = array_keys($skills);
+        $ratingKeys = array_keys($this->preschoolAssessments->ratingOptions());
+
+        if ($skillKeys === []) {
+            return back()->withInput()->with(
+                'message_error',
+                'No active courses are registered for this class in the selected academic period.'
+            );
+        }
+
+        $validated = $request->validate([
+            'ratings' => 'required|array|size:'.count($skillKeys),
+            'ratings.*' => 'required|in:'.implode(',', $ratingKeys),
+        ]);
+        $validated = [...$period, ...$validated];
+
+        $submittedSkillKeys = array_keys($validated['ratings']);
+        sort($submittedSkillKeys);
+        $expectedSkillKeys = $skillKeys;
+        sort($expectedSkillKeys);
+
+        if ($submittedSkillKeys !== $expectedSkillKeys) {
+            return back()->withInput()->with('message_error', 'Complete every listed developmental skill.');
+        }
+
+        $assessment = PreschoolAssessment::firstOrNew([
+            'student_id' => $student->id,
+            'academic_year_id' => (int) $validated['academic_year_id'],
+            'academic_term_id' => (int) $validated['academic_term_id'],
+        ]);
+        $assessment->fill([
+            'school_class_id' => $schoolClass->id,
+            'staff_id' => $staffId,
+            'ratings' => $validated['ratings'],
+            'updated_by' => Auth::id(),
+        ]);
+
+        if (! $assessment->exists) {
+            $assessment->created_by = Auth::id();
+        }
+
+        $assessment->save();
+
+        return redirect()
+            ->route('teacher-preschool-student-assessment', [
+                'student' => $student,
+                'academic_year_id' => $validated['academic_year_id'],
+                'academic_term_id' => $validated['academic_term_id'],
+            ])
+            ->with('message_success', 'Preschool assessment saved successfully.');
+    }
+
     private function renderHub(Request $request, string $scope)
     {
         $staffId = $this->teacherAccess->staffId();
@@ -74,6 +189,20 @@ class AssessmentController extends Controller implements HasMiddleware
         $homeroomClasses = $this->teacherAccess->homeroomClasses($staffId)->load('category');
         $subjectAssignments = $this->teacherAccess->subjectAssignments($staffId, $yearId, $termId);
         $subjectAssignments->loadMissing(['schoolClass.category', 'course']);
+
+        $preschoolClasses = $scope === 'pending'
+            ? $homeroomClasses->filter(fn (SchoolClass $class) => $this->preschoolAssessments->isPreschoolClass($class))->values()
+            : collect();
+        $isPreschoolHomeroom = $preschoolClasses->isNotEmpty();
+        $preschoolStudents = $isPreschoolHomeroom
+            ? Student::query()
+                ->with('schoolClass.category')
+                ->whereIn('school_class_id', $preschoolClasses->pluck('id'))
+                ->where('status', 'Active')
+                ->orderBy('surname')
+                ->orderBy('firstname')
+                ->get()
+            : collect();
 
         $assessments = $this->teacherAssessmentsQuery($request, $scope)->get();
 
@@ -94,6 +223,9 @@ class AssessmentController extends Controller implements HasMiddleware
         return view($view, [
             'homeroomClasses' => $homeroomClasses,
             'subjectAssignments' => $subjectAssignments,
+            'isPreschoolHomeroom' => $isPreschoolHomeroom,
+            'preschoolClasses' => $preschoolClasses,
+            'preschoolStudents' => $preschoolStudents,
             'assessments' => $assessments,
             'assessmentTypes' => $this->legendAssessmentTypes(),
             ...$this->assessmentPageData($request),

@@ -56,6 +56,16 @@
         opacity: 0.55;
         cursor: not-allowed;
     }
+
+    .preschool-student-table {
+        min-width: 900px;
+    }
+
+    .preschool-student-photo {
+        width: 44px;
+        height: 44px;
+        object-fit: cover;
+    }
 </style>
 @endsection
 
@@ -70,6 +80,7 @@
             </div>
         </div>
         <div class="ah-hero-actions">
+            @unless($isPreschoolHomeroom)
             @if(($stats['records'] ?? 0) > 0)
                 <a href="{{ route('teacher-assessment-records', $periodQuery) }}" class="btn btn-outline-primary-600 d-flex align-items-center gap-6">
                     <i class="ri-archive-line"></i> Assessment Records ({{ $stats['records'] }})
@@ -78,9 +89,13 @@
             <button type="button" class="btn btn-primary-600 d-flex align-items-center gap-6" data-bs-toggle="modal" data-bs-target="#createAssessmentModal">
                 <i class="ri-add-large-line"></i> New Assessment
             </button>
+            @endunless
         </div>
     </div>
 
+    @if($isPreschoolHomeroom)
+        @include('teacher.partials._preschool-student-assessment-list')
+    @else
     <div class="card ac-list-wrapper mb-24">
         <div class="card-body py-16 px-24">
             @include('teacher.partials._academic-period-filter')
@@ -242,14 +257,17 @@
             'stats' => $stats,
         ])
     </div>
+    @endif
 </div>
 
+@unless($isPreschoolHomeroom)
 @include('teacher.partials._create-assessment-modal', [
     'homeroomClasses' => $homeroomClasses,
     'subjectAssignments' => $subjectAssignments,
     'assessmentTypes' => $assessmentTypes,
     'period' => $period,
 ])
+@endunless
 @endsection
 
 @section('scripts')

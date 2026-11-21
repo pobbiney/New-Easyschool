@@ -157,6 +157,62 @@
         font-size: 11px;
     }
 
+    .terminal-report__development-table th:first-child {
+        width: 44%;
+        text-align: left;
+        padding-left: 8px;
+    }
+
+    .terminal-report__development-table th:not(:first-child) {
+        width: 14%;
+    }
+
+    .terminal-report__development-table td.rating-cell {
+        padding: 4px;
+        text-align: center;
+    }
+
+    .terminal-report__development-table td.course-name {
+        padding-left: 8px;
+        text-align: left;
+        text-transform: uppercase;
+        font-size: 11px;
+    }
+
+    .terminal-report__development-category td {
+        height: 25px;
+        padding: 5px 8px;
+        color: var(--tr-navy);
+        background: #eeeeee;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
+    .terminal-report__rating {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1.5px solid #000;
+        border-radius: 1px;
+        background: #fff;
+    }
+
+    .terminal-report__rating::after {
+        content: '\2713';
+        color: var(--tr-navy);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1;
+        opacity: 0;
+    }
+
+    .terminal-report__rating.is-selected::after { opacity: 1; }
+
     .terminal-report__footer {
         padding: 6px 16px 16px;
     }
@@ -190,7 +246,9 @@
         }
 
         .terminal-report__banner,
-        .terminal-report__table th {
+        .terminal-report__table th,
+        .terminal-report__development-category td,
+        .terminal-report__rating {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -284,6 +342,54 @@
         </div>
     </div>
 
+    @if($report['is_preschool'] ?? false)
+    @php
+        $preschoolCourses = $report['preschool_courses'] ?? [];
+        $preschoolRatingOptions = $report['preschool_rating_options'] ?? [];
+        $preschoolRatings = $report['preschool_ratings'] ?? [];
+        $preschoolCategory = null;
+    @endphp
+    <div class="terminal-report__table-wrap">
+        <table class="terminal-report__table terminal-report__development-table">
+            <thead>
+                <tr>
+                    <th>Academic &amp; Developmental Progress</th>
+                    @foreach($preschoolRatingOptions as $rating)
+                        <th>{{ $rating['label'] }}</th>
+                    @endforeach
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($preschoolCourses as $courseKey => $course)
+                    @if($preschoolCategory !== $course['category'])
+                        @php $preschoolCategory = $course['category']; @endphp
+                        <tr class="terminal-report__development-category">
+                            <td>{{ $course['category'] }}</td>
+                            <td colspan="{{ count($preschoolRatingOptions) }}" aria-hidden="true"></td>
+                        </tr>
+                    @endif
+                    <tr>
+                        <td class="course-name">{{ $course['label'] }}</td>
+                        @foreach($preschoolRatingOptions as $ratingKey => $rating)
+                            <td class="rating-cell">
+                                <span
+                                    class="terminal-report__rating {{ ($preschoolRatings[$courseKey] ?? null) === $ratingKey ? 'is-selected' : '' }}"
+                                    title="{{ $rating['label'] }}"
+                                ></span>
+                            </td>
+                        @endforeach
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="{{ count($preschoolRatingOptions) + 1 }}" style="padding:12px;text-align:center;">
+                            No registered preschool courses for this academic period.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+    @else
     <div class="terminal-report__table-wrap">
         <table class="terminal-report__table">
             <thead>
@@ -321,6 +427,7 @@
             </tbody>
         </table>
     </div>
+    @endif
 
     <div class="terminal-report__footer">
         <div class="terminal-report__footer-row terminal-report__footer-row--split">
