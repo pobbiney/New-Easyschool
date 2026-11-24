@@ -239,10 +239,89 @@
     }
 
     @media print {
+        @page {
+            size: A4 portrait;
+            margin: 5mm;
+        }
+
         .terminal-report {
             border-width: 2px;
+            width: 100%;
+            zoom: var(--terminal-report-print-scale, 1);
+            break-inside: avoid;
+            page-break-inside: avoid;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+        }
+
+        .print-sheet .report-card-page + .report-card-page {
+            margin-top: 0;
+        }
+
+        .terminal-report__header {
+            grid-template-columns: 82px 1fr 82px;
+            gap: 10px;
+            padding: 9px 12px 7px;
+        }
+
+        .terminal-report__photo,
+        .terminal-report__logo {
+            width: 82px;
+            height: 82px;
+        }
+
+        .terminal-report__school-name {
+            margin-bottom: 3px;
+            font-size: 16px;
+        }
+
+        .terminal-report__school-meta {
+            font-size: 11px;
+            line-height: 1.2;
+        }
+
+        .terminal-report__banner {
+            padding: 5px 10px;
+        }
+
+        .terminal-report__info {
+            padding: 7px 12px 5px;
+        }
+
+        .terminal-report__info-row {
+            margin-bottom: 5px;
+        }
+
+        .terminal-report__value {
+            min-height: 15px;
+        }
+
+        .terminal-report__table-wrap {
+            padding: 0 12px 6px;
+        }
+
+        .terminal-report__table th,
+        .terminal-report__table td {
+            padding-top: 3px;
+            padding-bottom: 3px;
+        }
+
+        .terminal-report__table td {
+            height: 22px;
+        }
+
+        .terminal-report__development-category td {
+            height: 22px;
+            padding-top: 3px;
+            padding-bottom: 3px;
+        }
+
+        .terminal-report__footer {
+            padding: 4px 12px 8px;
+        }
+
+        .terminal-report__footer-row {
+            margin-bottom: 6px;
         }
 
         .terminal-report__banner,
@@ -471,3 +550,46 @@
         </div>
     </div>
 </div>
+
+@once
+<script>
+    (function () {
+        function fitTerminalReportsToA4() {
+            var reports = document.querySelectorAll('.terminal-report');
+
+            if (!reports.length) {
+                return;
+            }
+
+            var pageRuler = document.createElement('div');
+            pageRuler.setAttribute('aria-hidden', 'true');
+            pageRuler.style.cssText = 'position:absolute;left:-10000px;top:0;width:1px;height:287mm;visibility:hidden;pointer-events:none;';
+            document.body.appendChild(pageRuler);
+
+            // Leave a small buffer for browser print rounding and the report border.
+            var printableHeight = pageRuler.getBoundingClientRect().height * 0.985;
+
+            reports.forEach(function (report) {
+                report.style.setProperty('--terminal-report-print-scale', '1');
+                var reportHeight = report.getBoundingClientRect().height;
+                var scale = reportHeight > printableHeight
+                    ? printableHeight / reportHeight
+                    : 1;
+
+                report.style.setProperty('--terminal-report-print-scale', scale.toFixed(4));
+            });
+
+            pageRuler.remove();
+        }
+
+        function resetTerminalReportScale() {
+            document.querySelectorAll('.terminal-report').forEach(function (report) {
+                report.style.removeProperty('--terminal-report-print-scale');
+            });
+        }
+
+        window.addEventListener('beforeprint', fitTerminalReportsToA4);
+        window.addEventListener('afterprint', resetTerminalReportScale);
+    })();
+</script>
+@endonce
