@@ -401,6 +401,7 @@
                                 </td>
                                 <td data-label="Receipt">
                                     <span class="pay-receipt">{{ $payment->receipt_no }}</span>
+                                    @if($payment->isVoided())<div class="text-danger fw-semibold">Voided test payment</div>@endif
                                 </td>
                                 <td data-label="Method">
                                     <span class="pay-method">

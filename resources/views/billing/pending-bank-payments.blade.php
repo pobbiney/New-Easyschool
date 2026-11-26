@@ -79,6 +79,7 @@
                                 <td>
                                     <div class="pbp-student">{{ $row->student->full_name ?? 'Student' }}</div>
                                     <div class="pbp-meta">{{ $row->student->student_id ?? '' }} · {{ $row->student->class_name ?? ($row->student->schoolClass->name ?? '') }}</div>
+                                    @if($row->financial_category)<div class="pbp-meta">{{ $row->financial_category === 'feeding_fee' ? 'Feeding Fee' : 'School Fees' }}</div>@endif
                                 </td>
                                 <td>{{ $row->bank_instrument }}</td>
                                 <td>{{ $row->reference }}</td>
@@ -146,6 +147,7 @@
                                 <td>
                                     <div class="pbp-student">{{ $row->student->full_name ?? 'Student' }}</div>
                                     <div class="pbp-meta">{{ $row->reference }}</div>
+                                    @if($row->financial_category)<div class="pbp-meta">{{ $row->financial_category === 'feeding_fee' ? 'Feeding Fee' : 'School Fees' }}</div>@endif
                                 </td>
                                 <td>{{ $row->bank_instrument }}</td>
                                 <td>₵{{ number_format((float) $row->amount, 2) }}</td>

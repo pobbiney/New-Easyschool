@@ -54,6 +54,8 @@ use App\Http\Controllers\Pos\PosStockController;
 use App\Http\Controllers\Pos\PosSaleController;
 use App\Http\Controllers\Expense\ExpenseController;
 use App\Http\Controllers\Expense\ExpenseCategoryController;
+use App\Http\Controllers\Finance\SchoolVaultDashboardController;
+use App\Http\Controllers\Finance\SchoolVaultReportController;
 use App\Http\Controllers\Reports\ReportController;
 use App\Services\Reports\ReportCatalog;
 use App\Http\Controllers\ParentPortal\ParentAccountController;
@@ -121,6 +123,12 @@ Route::get('id-card/scan/student/{code}', [StudentController::class, 'scanByCode
 Route::get('id-card/scan/staff/{code}', [StaffController::class, 'scanByCode'])
     ->name('id-card-scan-staff')
     ->where('code', '[A-Za-z0-9\-]+');
+
+// Paystack cannot carry a staff session. Authenticity is enforced by the
+// provider HMAC signature before any payment finalization is attempted.
+Route::post('paystack/webhook', [BillPaymentController::class, 'webhook'])
+    ->name('paystack-webhook')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 Route::middleware(['staff.auth', 'menu.access'])->group(function () {
 Route::get('dashboard',[DashboardController::class,'index'])->name('dashboard');
@@ -414,7 +422,6 @@ Route::post('logout-authentication-process',[DashboardController::class,'logoutA
         Route::post('pending-bank-payments/{pending}/reject', 'rejectPendingBankPayment')->name('pending-bank-payments-reject');
         Route::post('paystack/bill-payment/initialize', 'initializePaystack')->name('paystack-bill-payment-initialize');
         Route::post('paystack/bill-payment/verify', 'verifyPaystack')->name('paystack-bill-payment-verify');
-        Route::post('paystack/webhook', 'webhook')->name('paystack-webhook')->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
         Route::get('bill-payment-receipt/{id}', 'receipt')->name('bill-payment-receipt');
     });
 /* End Billing */
@@ -557,6 +564,26 @@ Route::post('logout-authentication-process',[DashboardController::class,'logoutA
         Route::post('update-expense-category-process', 'update')->name('update-expense-category-process');
     });
 /* End Expenses */
+
+/* School Vault */
+   Route::get('school-vault-dashboard', [SchoolVaultDashboardController::class, 'index'])
+        ->name('school-vault-dashboard');
+
+   Route::controller(SchoolVaultReportController::class)->group(function () {
+        Route::get('school-vault-collections', 'collections')->name('school-vault-collections');
+        Route::get('school-vault-transactions', 'transactions')->name('school-vault-transactions');
+        Route::get('school-vault-reconciliation', 'reconciliation')->name('school-vault-reconciliation');
+        Route::post('school-vault-reconciliation', 'storeReconciliation')->name('school-vault-reconciliation-store');
+        Route::get('school-vault-statement', 'statement')->name('school-vault-statement');
+
+        foreach (['collections', 'transactions', 'reconciliation', 'statement'] as $vaultReport) {
+            $base = 'school-vault-'.$vaultReport;
+            Route::get($base.'-print', 'print')->defaults('report', $vaultReport)->name($base.'-print');
+            Route::get($base.'-pdf', 'pdf')->defaults('report', $vaultReport)->name($base.'-pdf');
+            Route::get($base.'-excel', 'excel')->defaults('report', $vaultReport)->name($base.'-excel');
+        }
+   });
+/* End School Vault */
 
 /* Reports */
     foreach (ReportCatalog::KEYS as $reportKey => $reportTitle) {

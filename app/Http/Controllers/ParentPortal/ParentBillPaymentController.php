@@ -10,7 +10,9 @@ use App\Models\Student;
 use App\Services\Billing\BillPaymentProcessor;
 use App\Services\Billing\BillPaymentSmsService;
 use App\Services\Billing\PaystackService;
+use App\Services\Billing\PaymentMethodEligibility;
 use App\Services\ParentPortal\ParentStudentService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +27,7 @@ class ParentBillPaymentController extends Controller
         private BillPaymentProcessor $paymentProcessor,
         private PaystackService $paystackService,
         private BillPaymentSmsService $billPaymentSmsService,
+        private PaymentMethodEligibility $paymentMethodEligibility,
     ) {}
 
     public function applyCredit(Request $request, Student $student)
@@ -37,25 +40,29 @@ class ParentBillPaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'credit_applied' => 'required|numeric|min:0.01',
+            'credit_applied' => 'required|decimal:0,2|min:0.01|max:9999999999.99',
             'allocations' => 'nullable|array',
             'allocations.*.student_bill_id' => 'required|exists:student_bills,id',
-            'allocations.*.amount' => 'required|numeric|min:0.01',
+            'allocations.*.amount' => 'required|decimal:0,2|min:0.01|max:9999999999.99',
         ]);
 
-        $creditApplied = round((float) $validated['credit_applied'], 2);
+        $creditApplied = (string) $validated['credit_applied'];
 
         try {
+            $requestedAllocations = collect($validated['allocations'] ?? []);
+            $financialCategory = $this->paymentProcessor->financialCategoryForAllocations($child->id, $requestedAllocations);
             $allocations = $this->paymentProcessor->resolveAllocations(
                 $child->id,
+                $financialCategory,
                 0,
                 $creditApplied,
-                collect($validated['allocations'] ?? [])
+                $requestedAllocations
             );
 
-            $payment = DB::transaction(function () use ($child, $creditApplied, $allocations) {
+            $payment = DB::transaction(function () use ($child, $financialCategory, $creditApplied, $allocations) {
                 return $this->paymentProcessor->finalizePayment(
                     student: $child,
+                    financialCategory: $financialCategory,
                     cashAmount: 0,
                     creditApplied: $creditApplied,
                     paymentMethod: 'Credit',
@@ -94,29 +101,33 @@ class ParentBillPaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01',
-            'credit_applied' => 'nullable|numeric|min:0',
+            'amount' => 'required|decimal:0,2|min:0.01|max:9999999999.99',
+            'credit_applied' => 'nullable|decimal:0,2|min:0|max:9999999999.99',
             'allocations' => 'nullable|array',
             'allocations.*.student_bill_id' => 'required|exists:student_bills,id',
-            'allocations.*.amount' => 'required|numeric|min:0.01',
+            'allocations.*.amount' => 'required|decimal:0,2|min:0.01|max:9999999999.99',
         ]);
 
-        $cashAmount = (float) $validated['amount'];
-        $creditApplied = round((float) ($validated['credit_applied'] ?? 0), 2);
+        $cashAmount = (string) $validated['amount'];
+        $creditApplied = (string) ($validated['credit_applied'] ?? '0');
 
         try {
+            $requestedAllocations = collect($validated['allocations'] ?? []);
+            $financialCategory = $this->paymentProcessor->financialCategoryForAllocations($child->id, $requestedAllocations);
+            $this->paymentMethodEligibility->assertPaystackInitializationAllowed($financialCategory);
             $allocations = $this->paymentProcessor->resolveAllocations(
                 $child->id,
+                $financialCategory,
                 $cashAmount,
                 $creditApplied,
-                collect($validated['allocations'] ?? [])
+                $requestedAllocations
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
         $reference = $this->generatePaystackReference();
-        $amountInPesewas = (int) round($cashAmount * 100);
+        $amountInPesewas = Money::toMinor($cashAmount);
 
         BillPaymentTransaction::query()
             ->where('student_id', $child->id)
@@ -130,6 +141,7 @@ class ParentBillPaymentController extends Controller
 
         BillPaymentTransaction::create([
             'student_id' => $child->id,
+            'financial_category' => $financialCategory,
             'reference' => $reference,
             'amount' => $cashAmount,
             'credit_applied' => $creditApplied,
@@ -206,11 +218,22 @@ class ParentBillPaymentController extends Controller
             throw new InvalidArgumentException('Paystack payment was not successful.');
         }
 
-        $verifiedAmount = round(((int) ($paystackData['amount'] ?? 0)) / 100, 2);
+        if ((string) ($paystackData['reference'] ?? '') !== $transaction->reference) {
+            throw new InvalidArgumentException('Verified payment reference does not match the initiated transaction.');
+        }
 
-        if (abs($verifiedAmount - (float) $transaction->amount) > 0.009) {
+        if (strtoupper((string) ($paystackData['currency'] ?? '')) !== strtoupper($transaction->currency)) {
+            throw new InvalidArgumentException('Verified payment currency does not match the initiated transaction.');
+        }
+
+        $verifiedAmountInMinorUnits = (int) ($paystackData['amount'] ?? 0);
+        $expectedAmountInMinorUnits = Money::toMinor((string) $transaction->amount);
+
+        if ($verifiedAmountInMinorUnits !== $expectedAmountInMinorUnits) {
             throw new InvalidArgumentException('Verified payment amount does not match the initiated transaction.');
         }
+
+        $verifiedAmount = Money::fromMinor($verifiedAmountInMinorUnits);
 
         return DB::transaction(function () use ($transaction, $paystackData, $verifiedAmount) {
             $lockedTransaction = BillPaymentTransaction::query()
@@ -225,10 +248,13 @@ class ParentBillPaymentController extends Controller
 
             $student = Student::findOrFail($lockedTransaction->student_id);
             $allocations = collect($lockedTransaction->allocations ?? []);
-            $creditApplied = round((float) $lockedTransaction->credit_applied, 2);
+            $financialCategory = $lockedTransaction->financial_category
+                ?: $this->paymentProcessor->financialCategoryForAllocations($student->id, $allocations);
+            $creditApplied = (string) $lockedTransaction->credit_applied;
 
             $payment = $this->paymentProcessor->finalizePayment(
                 student: $student,
+                financialCategory: $financialCategory,
                 cashAmount: $verifiedAmount,
                 creditApplied: $creditApplied,
                 paymentMethod: 'Paystack',
@@ -239,6 +265,7 @@ class ParentBillPaymentController extends Controller
                 paymentChannel: $paystackData['channel'] ?? null,
                 gatewayTransactionId: isset($paystackData['id']) ? (string) $paystackData['id'] : null,
                 createdBy: null,
+                historicalGatewayCompletion: true,
             );
 
             $lockedTransaction->update([

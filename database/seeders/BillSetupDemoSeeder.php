@@ -247,6 +247,7 @@ class BillSetupDemoSeeder extends Seeder
                     'description' => $item['description'],
                     'status' => 'Active',
                     'is_compulsory' => $item['is_compulsory'],
+                    'financial_category' => BillingItem::FINANCIAL_CATEGORY_SCHOOL_FEES,
                     'created_by' => $adminId,
                 ]
             );

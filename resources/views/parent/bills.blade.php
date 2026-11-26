@@ -280,6 +280,8 @@
     }
     .fees-line:last-child { border-bottom: 0; }
     .fees-line.is-locked { cursor: default; }
+    .fees-line.is-office-only { cursor: default; opacity: .72; background:#f8fafc; }
+    .fees-office-badge { display:inline-flex; margin-left:6px; padding:2px 7px; border-radius:999px; background:#fff7ed; color:#9a3412; font-size:10px; font-weight:800; }
     .fees-line.is-selected { background: #f0fdfa; }
     .fees-line:hover { background: #f8fffe; }
     .fees-check {
@@ -598,15 +600,17 @@
                     @else
                         <div class="fees-lines" id="feesLines">
                             @foreach($outstandingBills as $bill)
-                                <div class="fees-line is-selected {{ $bill['is_compulsory'] ? 'is-locked' : '' }}"
+                                <div class="fees-line {{ $bill['financial_category'] === 'school_fees' ? 'is-selected' : 'is-office-only' }} {{ $bill['is_compulsory'] ? 'is-locked' : '' }}"
                                      data-bill-id="{{ $bill['id'] }}"
                                      data-balance="{{ number_format($bill['balance'], 2, '.', '') }}"
+                                     data-category="{{ $bill['financial_category'] }}"
                                      data-compulsory="{{ $bill['is_compulsory'] ? '1' : '0' }}">
-                                    <span class="fees-check"><i class="{{ $bill['is_compulsory'] ? 'ri-lock-fill' : 'ri-check-line' }}"></i></span>
+                                    <span class="fees-check"><i class="{{ $bill['financial_category'] === 'feeding_fee' || $bill['is_compulsory'] ? 'ri-lock-fill' : 'ri-check-line' }}"></i></span>
                                     <div>
                                         <div class="fees-line-name">
                                             {{ $bill['item_name'] }}
                                             @if($bill['is_compulsory'])<span class="fees-req">Required</span>@endif
+                                            @if($bill['financial_category'] === 'feeding_fee')<span class="fees-office-badge">Pay at school office</span>@endif
                                         </div>
                                         <div class="fees-line-meta">
                                             {{ trim(($bill['term_name'] ?? '').' '.($bill['year_name'] ?? '')) ?: 'Current' }}
@@ -675,7 +679,7 @@
         </div>
 
         <div>
-            @if($outstandingBills->isNotEmpty())
+            @if($onlinePayableBills->isNotEmpty())
                 <form class="fees-pay" id="parentPayForm" onsubmit="return false;">
                     @csrf
                     <div class="fees-pay-head">
@@ -686,7 +690,7 @@
                     <div class="fees-pay-body">
                         <div class="fees-pay-total">
                             <label>You pay</label>
-                            <div><small>GHS </small><span id="showAmt">{{ number_format($netPayable > 0 ? $netPayable : $totalOutstanding, 2) }}</span></div>
+                            <div><small>GHS </small><span id="showAmt">{{ number_format($onlineNetPayable > 0 ? $onlineNetPayable : $onlineOutstanding, 2) }}</span></div>
                         </div>
 
                         @if($creditBalance > 0)
@@ -695,28 +699,28 @@
                                     <strong>Use credit GHS {{ number_format($creditBalance, 2) }}</strong>
                                     <span>Apply remaining credit to this payment</span>
                                 </div>
-                                <input type="checkbox" id="useCredit" {{ $netPayable <= 0 ? 'checked' : '' }}>
+                                <input type="checkbox" id="useCredit" {{ $onlineNetPayable <= 0 ? 'checked' : '' }}>
                             </label>
                             <div class="fees-input-wrap fees-credit-amt" id="creditAmtWrap">
                                 <span>GHS</span>
-                                <input type="number" id="creditAmount" min="0" step="0.01" max="{{ $creditBalance }}" value="{{ number_format(min($creditBalance, $totalOutstanding), 2, '.', '') }}">
+                                <input type="number" id="creditAmount" min="0" step="0.01" max="{{ $creditBalance }}" value="{{ number_format(min($creditBalance, $onlineOutstanding), 2, '.', '') }}">
                             </div>
                         @endif
 
                         <div class="fees-chips" id="payChips">
                             <button type="button" class="fees-chip on" data-mode="full">Full balance</button>
                             <button type="button" class="fees-chip" data-mode="half">Half</button>
-                            @if($netPayable >= 100 || $totalOutstanding >= 100)<button type="button" class="fees-chip" data-v="100">100</button>@endif
-                            @if($netPayable >= 200 || $totalOutstanding >= 200)<button type="button" class="fees-chip" data-v="200">200</button>@endif
-                            @if($netPayable >= 500 || $totalOutstanding >= 500)<button type="button" class="fees-chip" data-v="500">500</button>@endif
+                            @if($onlineNetPayable >= 100 || $onlineOutstanding >= 100)<button type="button" class="fees-chip" data-v="100">100</button>@endif
+                            @if($onlineNetPayable >= 200 || $onlineOutstanding >= 200)<button type="button" class="fees-chip" data-v="200">200</button>@endif
+                            @if($onlineNetPayable >= 500 || $onlineOutstanding >= 500)<button type="button" class="fees-chip" data-v="500">500</button>@endif
                         </div>
                         <div class="fees-input-wrap">
                             <span>GHS</span>
-                            <input type="number" id="payAmount" min="0" step="0.01" value="{{ number_format($netPayable, 2, '.', '') }}">
+                            <input type="number" id="payAmount" min="0" step="0.01" value="{{ number_format($onlineNetPayable, 2, '.', '') }}">
                         </div>
                         <button type="button" id="paystackBtn" class="fees-pay-btn">
                             <i class="ri-lock-unlock-line"></i>
-                            <span id="payBtnLabel">{{ $netPayable > 0 ? 'Pay now' : 'Apply credit' }}</span>
+                            <span id="payBtnLabel">{{ $onlineNetPayable > 0 ? 'Pay now' : 'Apply credit' }}</span>
                         </button>
                         <div class="fees-pay-trust">
                             <i class="ri-shield-check-line"></i>
@@ -728,9 +732,9 @@
             @else
                 <div class="fees-pay">
                     <div class="fees-pay-body fees-all-clear" style="border:none;box-shadow:none;margin:0;">
-                        <i class="ri-emotion-happy-line"></i>
-                        <h3>Nothing to pay</h3>
-                        <p>Account is fully settled.</p>
+                        <i class="{{ $outstandingBills->isEmpty() ? 'ri-emotion-happy-line' : 'ri-bank-line' }}"></i>
+                        <h3>{{ $outstandingBills->isEmpty() ? 'Nothing to pay' : 'Pay Feeding Fee at the school office' }}</h3>
+                        <p>{{ $outstandingBills->isEmpty() ? 'Account is fully settled.' : 'Feeding Fee payments are accepted through cash, cheque, bankers draft, or approved bank payment.' }}</p>
                     </div>
                 </div>
             @endif
@@ -757,7 +761,7 @@
     });
 })();
 </script>
-@if($outstandingBills->isNotEmpty())
+@if($onlinePayableBills->isNotEmpty())
 <script>
 (function () {
     const creditBalance = {{ json_encode((float) $creditBalance) }};
@@ -830,7 +834,7 @@
 
     document.querySelectorAll('.fees-line').forEach(function (line) {
         line.addEventListener('click', function () {
-            if (line.classList.contains('is-locked')) return;
+            if (line.classList.contains('is-locked') || line.classList.contains('is-office-only')) return;
             line.classList.toggle('is-selected');
             const icon = line.querySelector('.fees-check i');
             if (icon) icon.className = line.classList.contains('is-selected') ? 'ri-check-line' : 'ri-subtract-line';

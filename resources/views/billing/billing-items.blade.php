@@ -13,6 +13,9 @@
     .type-badge-compulsory,.type-badge-optional{padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600}
     .type-badge-compulsory{background:rgba(234,88,12,.1);color:#c2410c}
     .type-badge-optional{background:rgba(99,102,241,.1);color:#4338ca}
+    .category-badge-school,.category-badge-feeding{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+    .category-badge-school{background:rgba(37,161,148,.1);color:#19776e}
+    .category-badge-feeding{background:rgba(245,158,11,.12);color:#a16207}
 </style>
 @endsection
 @section('content')
@@ -40,13 +43,19 @@
         </div>
         <div class="card-body p-0 dataTable-wrapper">
             @if($items->isNotEmpty())
-            <table class="table bordered-table mb-0 data-table" id="dataTable">
-                <thead><tr><th>Item</th><th>Description</th><th>Payment Type</th><th>Status</th><th>Action</th></tr></thead>
+            <table class="table bordered-table mb-0 data-table data-table-scroll-x" id="dataTable">
+                <thead><tr><th>Item</th><th>Description</th><th>Financial Category</th><th>Payment Type</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody>
                     @foreach($items as $item)
                     <tr>
                         <td><div class="d-flex align-items-center gap-12"><span class="item-avatar">{{ strtoupper(substr($item->name,0,2)) }}</span><span class="fw-semibold">{{ $item->name }}</span></div></td>
                         <td class="text-secondary-light">{{ $item->description ?: '—' }}</td>
+                        <td>
+                            <span class="{{ $item->financial_category === \App\Models\BillingItem::FINANCIAL_CATEGORY_FEEDING_FEE ? 'category-badge-feeding' : 'category-badge-school' }}">
+                                <i class="{{ $item->financial_category === \App\Models\BillingItem::FINANCIAL_CATEGORY_FEEDING_FEE ? 'ri-restaurant-2-line' : 'ri-bank-line' }}"></i>
+                                {{ $item->financial_category_label }}
+                            </span>
+                        </td>
                         <td><span class="{{ $item->is_compulsory ? 'type-badge-compulsory' : 'type-badge-optional' }}">{{ $item->is_compulsory ? 'Compulsory' : 'Optional' }}</span></td>
                         <td><span class="{{ $item->status == 'Active' ? 'status-badge-active' : 'status-badge-inactive' }}">{{ $item->status }}</span></td>
                         <td><button type="button" data-url="{{ route('get-billing-item-id', $item->id) }}" class="edit-sidebar-btn btn btn-sm btn-outline-primary-600 show-billing-item-edit"><i class="ri-edit-2-line"></i> Edit</button></td>
@@ -69,6 +78,7 @@
     $('.close-my-sidebar,.overlay').on('click', function(){
         $('.my-sidebar').removeClass('active');
         $('.my-sidebar form').trigger('reset');
+        syncFinancialCategory($('.my-sidebar .financial-category-select'));
         if (!$('.edit-sidebar').hasClass('active')) {
             $('.overlay').removeClass('active');
         }
@@ -80,9 +90,32 @@
             $('#edit_billing_item_id').val(data.id);
             $('#edit_billing_item_name').val(data.name);
             $('#edit_billing_item_description').val(data.description || '');
+            $('#edit_billing_item_financial_category').val(data.financial_category);
             $('#edit_billing_item_is_compulsory').val(data.is_compulsory ? '1' : '0');
             $('#edit_billing_item_status').val(data.status);
+            syncFinancialCategory($('#edit_billing_item_financial_category'));
         });
     });
+
+    const feedingFeeCategory = @json(\App\Models\BillingItem::FINANCIAL_CATEGORY_FEEDING_FEE);
+
+    function syncFinancialCategory($categorySelect) {
+        if (!$categorySelect.length) return;
+
+        const isFeedingFee = $categorySelect.val() === feedingFeeCategory;
+        const $paymentSelect = $($categorySelect.data('payment-select'));
+        const $help = $($categorySelect.data('help'));
+
+        $paymentSelect.find('option[value="1"]').prop('disabled', isFeedingFee);
+        if (isFeedingFee) {
+            $paymentSelect.val('0');
+            $help.text('Collections for this billing item will be allocated to the School Vault.');
+        } else {
+            $help.text('Collections for this billing item will be allocated to the School Fees account.');
+        }
+    }
+
+    $('.financial-category-select').on('change', function(){ syncFinancialCategory($(this)); });
+    $('.financial-category-select').each(function(){ syncFinancialCategory($(this)); });
 </script>
 @endsection

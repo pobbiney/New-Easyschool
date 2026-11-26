@@ -3,6 +3,7 @@
     $subpageName = 'student-bills';
     $initials = strtoupper(substr($student->firstname, 0, 1) . substr($student->surname, 0, 1));
     $photoUrl = $student->picture ? asset($student->picture) : null;
+    $initialOutstanding = (float) ($categoryBalances['school_fees'] ?? 0);
 @endphp
 @extends('layouts.app')
 
@@ -51,8 +52,8 @@
         text-transform: uppercase; letter-spacing: .06em; color: var(--fc-teal); margin-bottom: 8px;
     }
     .fc-profile-name {
-        font-size: 28px; font-weight: 800; color: #111827; margin: 0 0 6px;
-        letter-spacing: -.02em; line-height: 1.15;
+        font-size: 30px !important; font-weight: 800; color: #111827; margin: 0 0 6px;
+        letter-spacing: -.02em; line-height: 1.15; white-space: nowrap;
     }
     .fc-profile-id { font-size: 14px; color: #6b7280; margin: 0 0 14px; font-weight: 500; }
     .fc-tags { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -81,7 +82,7 @@
         .fc-profile-inner { padding: 20px; }
         .fc-profile-student { flex-direction: column; align-items: flex-start; }
         .fc-profile-photo { width: 84px; height: 84px; }
-        .fc-profile-name { font-size: 24px; }
+        .fc-profile-name { font-size: 30px !important; }
         .fc-profile-total { width: 100%; min-width: 0; }
     }
 
@@ -92,6 +93,24 @@
         background: #fff; border-radius: 18px; border: 1px solid #e5e7eb;
         box-shadow: 0 4px 20px rgba(15,23,42,.05); overflow: hidden;
     }
+    .fc-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .fc-category-card {
+        display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 16px;
+        border: 2px solid #e5e7eb; background: #fff; cursor: pointer; text-align: left;
+        transition: border-color .15s, box-shadow .15s, transform .15s;
+    }
+    .fc-category-card:hover { transform: translateY(-1px); border-color: rgba(37,161,148,.45); }
+    .fc-category-card.is-active { border-color: var(--fc-teal); box-shadow: 0 0 0 3px rgba(37,161,148,.12); }
+    .fc-category-icon { width: 48px; height: 48px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; font-size: 23px; background: rgba(37,161,148,.1); color: var(--fc-teal); }
+    .fc-category-copy { flex: 1; min-width: 0; }
+    .fc-category-title { color: #111827; font-size: 15px; font-weight: 800; }
+    .fc-category-sub { color: #6b7280; font-size: 11px; margin-top: 3px; }
+    .fc-category-balance { color: #dc2626; font-size: 19px; font-weight: 800; white-space: nowrap; }
+    .fc-destination { padding: 11px 18px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 700; }
+    .fc-destination strong { color: var(--fc-teal); }
+    .fc-progress { height: 6px; margin-top: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .fc-progress span { display: block; height: 100%; background: var(--fc-teal); border-radius: inherit; }
+    @media (max-width: 700px) { .fc-category-grid { grid-template-columns: 1fr; } }
     .fc-card-head {
         display: flex; align-items: center; justify-content: space-between; gap: 12px;
         padding: 18px 22px; border-bottom: 1px solid #f3f4f6;
@@ -325,7 +344,27 @@
     <form id="recordPaymentForm" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="student_id" value="{{ $student->id }}">
+        <input type="hidden" name="financial_category" id="fc_financial_category" value="school_fees">
         <input type="hidden" name="payment_method" id="fc_payment_method" value="Cash">
+
+        <div class="fc-category-grid" aria-label="Payment category">
+            <button type="button" class="fc-category-card is-active" data-category="school_fees">
+                <span class="fc-category-icon"><i class="ri-school-line"></i></span>
+                <span class="fc-category-copy">
+                    <span class="fc-category-title d-block">School Fees</span>
+                    <span class="fc-category-sub d-block">Tuition and other school bills</span>
+                </span>
+                <span class="fc-category-balance">₵{{ number_format($categoryBalances['school_fees'] ?? 0, 2) }}</span>
+            </button>
+            <button type="button" class="fc-category-card" data-category="feeding_fee">
+                <span class="fc-category-icon"><i class="ri-restaurant-2-line"></i></span>
+                <span class="fc-category-copy">
+                    <span class="fc-category-title d-block">Feeding Fee</span>
+                    <span class="fc-category-sub d-block">Optional termly feeding payments</span>
+                </span>
+                <span class="fc-category-balance">₵{{ number_format($categoryBalances['feeding_fee'] ?? 0, 2) }}</span>
+            </button>
+        </div>
 
         <div class="fc-grid">
             <div class="fc-card">
@@ -336,11 +375,13 @@
                         <button type="button" class="fc-mini-btn" id="fc_clear_all">Clear optional</button>
                     </div>
                 </div>
+                <div class="fc-destination">Financial destination: <strong id="fc_destination">School Fees Account</strong></div>
                 <div class="fc-lines" id="fc_bill_lines">
                     @forelse($bills as $bill)
                         @php $period = collect([$bill['term_name'], $bill['year_name']])->filter()->join(' · '); @endphp
-                        <div class="fc-line is-selected {{ $bill['is_compulsory'] ? 'is-required is-locked' : '' }}"
+                        <div class="fc-line {{ $bill['financial_category'] === 'school_fees' ? 'is-selected' : '' }} {{ $bill['is_compulsory'] ? 'is-required is-locked' : '' }}"
                              data-bill-id="{{ $bill['id'] }}"
+                             data-category="{{ $bill['financial_category'] }}"
                              data-balance="{{ $bill['balance'] }}"
                              data-compulsory="{{ $bill['is_compulsory'] ? '1' : '0' }}">
                             <span class="fc-check">
@@ -357,6 +398,9 @@
                                     @if($bill['is_compulsory'])<span class="fc-required">Required</span>@endif
                                 </div>
                                 <div class="fc-line-meta">{{ $period ?: 'Outstanding balance' }} · Due ₵{{ number_format($bill['amount_due'], 2) }} · Paid ₵{{ number_format($bill['amount_paid'], 2) }}</div>
+                                @if($bill['financial_category'] === 'feeding_fee')
+                                    <div class="fc-progress" title="{{ $bill['progress_percent'] }}% paid"><span style="width:{{ $bill['progress_percent'] }}%"></span></div>
+                                @endif
                             </div>
                             <div class="fc-line-amt">
                                 <div class="fc-line-balance">₵{{ number_format($bill['balance'], 2) }}</div>
@@ -372,11 +416,12 @@
                             @endif
                         </div>
                     @endforelse
+                    <div class="fc-no-bills" id="fc_category_empty" style="display:none;">No outstanding bills exist in this payment category.</div>
                 </div>
                 @if($bills->isNotEmpty())
                 <div class="fc-cart-foot">
-                    <div class="fc-cart-row"><span>Selected total</span><span id="fc_cart_subtotal">₵{{ number_format($totalOutstanding, 2) }}</span></div>
-                    <div class="fc-cart-row total"><span>Amount to collect</span><span id="fc_cart_total">₵{{ number_format($totalOutstanding, 2) }}</span></div>
+                    <div class="fc-cart-row"><span>Selected total</span><span id="fc_cart_subtotal">₵{{ number_format($initialOutstanding, 2) }}</span></div>
+                    <div class="fc-cart-row total"><span>Amount to collect</span><span id="fc_cart_total">₵{{ number_format($initialOutstanding, 2) }}</span></div>
                 </div>
                 @endif
             </div>
@@ -385,7 +430,7 @@
                 <div class="fc-card">
                     <div class="fc-display">
                         <div class="fc-display-lbl">Payment amount</div>
-                        <div class="fc-display-amt" id="fc_display_amount">₵{{ number_format($totalOutstanding, 2) }}</div>
+                        <div class="fc-display-amt" id="fc_display_amount">₵{{ number_format($initialOutstanding, 2) }}</div>
                         <div class="fc-display-row">
                             <span>Change due</span>
                             <span class="fc-display-change" id="fc_display_change">—</span>
@@ -429,7 +474,7 @@
                             <label id="fc_amount_label">Amount to collect</label>
                             <div class="fc-amt-wrap">
                                 <span class="fc-amt-prefix">₵</span>
-                                <input type="number" min="0" step="0.01" name="amount" id="fc_payment_amount" class="form-control" value="{{ number_format($totalOutstanding, 2, '.', '') }}" inputmode="decimal" autocomplete="off">
+                                <input type="number" min="0" step="0.01" name="amount" id="fc_payment_amount" class="form-control" value="{{ number_format($initialOutstanding, 2, '.', '') }}" inputmode="decimal" autocomplete="off">
                             </div>
                             <p class="fc-surplus-hint" id="fc_surplus_hint" style="display:none;"></p>
                         </div>
@@ -438,7 +483,7 @@
                             <label>Amount received (cash)</label>
                             <div class="fc-amt-wrap">
                                 <span class="fc-amt-prefix">₵</span>
-                                <input type="number" min="0" step="0.01" id="fc_amount_tendered" class="form-control" value="{{ number_format($totalOutstanding, 2, '.', '') }}">
+                                <input type="number" min="0" step="0.01" id="fc_amount_tendered" class="form-control" value="{{ number_format($initialOutstanding, 2, '.', '') }}">
                             </div>
                         </div>
 
@@ -456,7 +501,11 @@
                             <div class="fc-methods">
                                 <div class="fc-method is-active" data-method="Cash"><i class="ri-money-dollar-box-line"></i><span>Cash</span></div>
                                 <div class="fc-method" data-method="Bank"><i class="ri-bank-line"></i><span>Bank</span></div>
+                                @if($paystackConfigured ?? false)
+                                    <div class="fc-method" data-method="Paystack"><i class="ri-secure-payment-line"></i><span>Paystack</span></div>
+                                @endif
                             </div>
+                            <p class="fc-hint mt-8" id="fc_feeding_method_hint" style="display:none;">Feeding Fee payments can only be made through cash or approved bank payment methods.</p>
                         </div>
 
                         <div id="fc_bank_fields" style="display:none;">
@@ -508,6 +557,9 @@
 @endsection
 
 @section('scripts')
+@if($paystackConfigured ?? false)
+<script src="https://js.paystack.co/v1/inline.js"></script>
+@endif
 <script>
     const paymentUrl = @json(route('record-bill-payment-process', [], false));
     const paystackInitializeUrl = @json(route('paystack-bill-payment-initialize', [], false));
@@ -517,15 +569,20 @@
     const studentBillsUrl = @json(route('student-bills', [], false));
     const billData = @json($bills->values());
     const hasOutstandingBills = @json($hasOutstandingBills ?? $bills->isNotEmpty());
-    let selectedIds = new Set(billData.map(function(b){ return b.id; }));
+    let currentCategory = 'school_fees';
+    let selectedIds = new Set(billData.filter(function(b){ return b.financial_category === currentCategory; }).map(function(b){ return b.id; }));
+
+    function categoryBills() {
+        return billData.filter(function(b){ return b.financial_category === currentCategory; });
+    }
 
     function isCompulsoryBill(id) {
         const bill = billData.find(function(b){ return b.id === id; });
-        return !!(bill && bill.is_compulsory);
+        return !!(bill && currentCategory === 'school_fees' && bill.is_compulsory);
     }
 
     function compulsoryBillIds() {
-        return billData.filter(function(b){ return b.is_compulsory; }).map(function(b){ return b.id; });
+        return categoryBills().filter(function(b){ return b.is_compulsory; }).map(function(b){ return b.id; });
     }
 
     function ensureCompulsorySelected() {
@@ -538,8 +595,10 @@
     function syncLineSelectionClasses() {
         $('.fc-line').each(function() {
             const id = parseInt($(this).data('bill-id'), 10);
+            const matchesCategory = $(this).data('category') === currentCategory;
             const isSelected = selectedIds.has(id);
-            const isRequired = $(this).data('compulsory') === 1 || $(this).data('compulsory') === '1';
+            const isRequired = currentCategory === 'school_fees' && ($(this).data('compulsory') === 1 || $(this).data('compulsory') === '1');
+            $(this).toggle(matchesCategory);
             $(this).toggleClass('is-selected', isSelected);
             if (isRequired) {
                 $(this).addClass('is-required');
@@ -580,7 +639,7 @@
     }
 
     function selectedBills() {
-        return billData.filter(function(b){ return selectedIds.has(b.id); });
+        return categoryBills().filter(function(b){ return selectedIds.has(b.id); });
     }
 
     function selectedTotal() {
@@ -642,34 +701,43 @@
         const creditApplied = creditAppliedAmount();
         const tendered = parseFloat($('#fc_amount_tendered').val() || 0);
         const method = $('#fc_payment_method').val();
+        const feedingFee = currentCategory === 'feeding_fee';
+        $('.fc-method[data-method="Paystack"]').toggle(!feedingFee);
+        $('#fc_feeding_method_hint').toggle(feedingFee);
+        if (feedingFee && method === 'Paystack') {
+            $('#fc_payment_method').val('Cash');
+            $('.fc-method').removeClass('is-active').filter('[data-method="Cash"]').addClass('is-active');
+            return updateDisplay();
+        }
         const payAmount = resolveEffectivePayAmount(enteredPayAmount, tendered, total, method);
         const totalApplied = payAmount + creditApplied;
-        const saveExcessAsCredit = method === 'Cash' && $('#fc_save_excess_as_credit').is(':checked');
+        const saveExcessAsCredit = currentCategory === 'school_fees' && method === 'Cash' && $('#fc_save_excess_as_credit').is(':checked');
         const excessReceived = method === 'Cash' ? Math.max(tendered - total, 0) : 0;
         const change = method === 'Cash' && !saveExcessAsCredit && tendered > payAmount ? tendered - payAmount : 0;
         const surplus = Math.max(totalApplied - total, 0);
-        const creditToApply = creditAppliedAmount();
-        const netToCollect = Math.max(total - Math.min(creditBalance, total), 0);
-
         $('#fc_display_amount').text('₵' + formatMoney(totalApplied));
         $('#fc_selected_count').text(selectedBills().length + ' selected');
         $('#fc_cart_subtotal').text('₵' + formatMoney(total));
         $('#fc_cart_total').text('₵' + formatMoney(Math.min(totalApplied, total)));
         $('#fc_display_change').text(change > 0 ? '₵' + formatMoney(change) : (surplus > 0.009 ? '₵0.00 credit' : '—'));
 
-        if (!hasOutstandingBills) {
+        $('#fc_category_empty').toggle(categoryBills().length === 0);
+        $('#fc_destination').text(currentCategory === 'feeding_fee' ? 'School Vault' : 'School Fees Account');
+        $('#fc_credit_box').toggle(currentCategory === 'school_fees');
+
+        if (categoryBills().length === 0) {
             $('#fc_submit_btn').prop('disabled', true);
         } else {
             $('#fc_submit_btn').prop('disabled', totalApplied <= 0 || selectedBills().length === 0);
         }
 
-        if (surplus > 0.009) {
+        if (surplus > 0.009 && currentCategory === 'school_fees') {
             $('#fc_surplus_hint').text('₵' + formatMoney(surplus) + ' will be saved as remaining credit and shown on the bill printout.').show();
         } else {
             $('#fc_surplus_hint').hide();
         }
 
-        if (method === 'Cash' && excessReceived > 0.009) {
+        if (currentCategory === 'school_fees' && method === 'Cash' && excessReceived > 0.009) {
             $('#fc_excess_credit_wrap').show();
             $('#fc_save_excess_label').text(
                 saveExcessAsCredit
@@ -713,9 +781,36 @@
         }
     }
 
+    function switchCategory(category) {
+        if (category === currentCategory) return;
+
+        currentCategory = category;
+        $('#fc_financial_category').val(category);
+        $('.fc-category-card').toggleClass('is-active', false).filter('[data-category="' + category + '"]').addClass('is-active');
+        selectedIds = new Set(categoryBills().map(function(b){ return b.id; }));
+
+        $('#fc_use_credit').prop('checked', false);
+        $('#fc_credit_applied').val('0');
+        $('#fc_credit_amount_field').hide();
+        $('#fc_save_excess_as_credit').prop('checked', category === 'school_fees');
+        $('#fc_payment_method').val('Cash');
+        $('.fc-method').removeClass('is-active').filter('[data-method="Cash"]').addClass('is-active');
+        $('#fc_bank_instrument, #fc_bank_reference').val('');
+        $('#fc_receipt_file').val('');
+
+        const total = selectedTotal();
+        $('#fc_payment_amount, #fc_amount_tendered').val(total > 0 ? total.toFixed(2) : '');
+        syncLineSelectionClasses();
+        updateDisplay();
+    }
+
+    $('.fc-category-card').on('click', function() {
+        switchCategory($(this).data('category'));
+    });
+
     $('.fc-line').on('click', function() {
         const id = parseInt($(this).data('bill-id'), 10);
-        const isRequired = $(this).data('compulsory') === 1 || $(this).data('compulsory') === '1';
+        const isRequired = currentCategory === 'school_fees' && ($(this).data('compulsory') === 1 || $(this).data('compulsory') === '1');
 
         if (selectedIds.has(id)) {
             if (isRequired) {
@@ -732,7 +827,7 @@
     });
 
     $('#fc_select_all').on('click', function() {
-        selectedIds = new Set(billData.map(function(b){ return b.id; }));
+        selectedIds = new Set(categoryBills().map(function(b){ return b.id; }));
         syncLineSelectionClasses();
         syncPaymentAmountWithSelection(true);
         updateDisplay();
@@ -917,6 +1012,7 @@
         const payload = [
             { name: '_token', value: $('input[name="_token"]').val() },
             { name: 'student_id', value: $('input[name="student_id"]').val() },
+            { name: 'financial_category', value: currentCategory },
             { name: 'amount', value: payAmount.toFixed(2) },
             { name: 'credit_applied', value: creditApplied.toFixed(2) }
         ];
@@ -982,8 +1078,8 @@
     $('#recordPaymentForm').on('submit', function(e) {
         e.preventDefault();
 
-        if (!hasOutstandingBills) {
-            showAppToast('error', 'This student has no outstanding bills to pay.');
+        if (!categoryBills().length) {
+            showAppToast('error', 'This student has no outstanding bills in the selected payment category.');
             return;
         }
 
@@ -1011,7 +1107,16 @@
             return;
         }
 
+        if (currentCategory === 'feeding_fee' && totalApplied > total + 0.009) {
+            showAppToast('error', 'Feeding Fee cannot be overpaid. Return the excess cash as change.');
+            return;
+        }
+
         if (method === 'Paystack') {
+            if (currentCategory === 'feeding_fee') {
+                showAppToast('error', 'Feeding Fee payments can only be made through cash or approved bank payment methods.');
+                return;
+            }
             if (!paystackConfigured) {
                 showAppToast('error', 'Paystack is not configured.');
                 return;

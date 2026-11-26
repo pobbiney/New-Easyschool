@@ -2,43 +2,47 @@
 
 namespace App\Services\Billing;
 
+use App\Models\BillingItem;
 use App\Models\CategoryBillSetup;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\StudentBill;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 
 class StudentBillSyncService
 {
     public function syncForSetup(CategoryBillSetup $setup): array
     {
-        $setup->load('items');
+        $setup->load('items.billingItem');
 
         $students = $this->matchingStudents($setup);
         $created = 0;
-        $updated = 0;
+        $preserved = 0;
 
         foreach ($students as $student) {
             foreach ($setup->items as $item) {
-                if ((float) $item->amount <= 0) {
+                if (Money::toMinor((string) $item->amount) <= 0) {
                     continue;
                 }
 
-                $wasExisting = $this->upsertStudentBill(
+                $wasCreated = $this->createStudentBillIfMissing(
                     $student,
                     $setup,
                     $item->billing_item_id,
-                    (float) $item->amount
+                    (string) $item->amount,
+                    $item->billingItem?->financial_category
                 );
 
-                $wasExisting ? $updated++ : $created++;
+                $wasCreated ? $created++ : $preserved++;
             }
         }
 
         return [
             'students_matched' => $students->count(),
             'bills_created' => $created,
-            'bills_updated' => $updated,
+            'bills_updated' => 0,
+            'bills_preserved' => $preserved,
         ];
     }
 
@@ -47,13 +51,13 @@ class StudentBillSyncService
         $student->load('schoolClass.category');
 
         if (! $student->school_class_id || ! $student->academic_year_id || ! $student->academic_term_id) {
-            return ['students_matched' => 0, 'bills_created' => 0, 'bills_updated' => 0];
+            return ['students_matched' => 0, 'bills_created' => 0, 'bills_updated' => 0, 'bills_preserved' => 0];
         }
 
         $categoryId = $student->schoolClass?->class_category_id;
 
         if (! $categoryId) {
-            return ['students_matched' => 0, 'bills_created' => 0, 'bills_updated' => 0];
+            return ['students_matched' => 0, 'bills_created' => 0, 'bills_updated' => 0, 'bills_preserved' => 0];
         }
 
         $setup = CategoryBillSetup::query()
@@ -61,35 +65,37 @@ class StudentBillSyncService
             ->where('academic_year_id', $student->academic_year_id)
             ->where('academic_term_id', $student->academic_term_id)
             ->where('status', 'Active')
-            ->with('items')
+            ->with('items.billingItem')
             ->first();
 
         if (! $setup) {
-            return ['students_matched' => 1, 'bills_created' => 0, 'bills_updated' => 0];
+            return ['students_matched' => 1, 'bills_created' => 0, 'bills_updated' => 0, 'bills_preserved' => 0];
         }
 
         $created = 0;
-        $updated = 0;
+        $preserved = 0;
 
         foreach ($setup->items as $item) {
-            if ((float) $item->amount <= 0) {
+            if (Money::toMinor((string) $item->amount) <= 0) {
                 continue;
             }
 
-            $wasExisting = $this->upsertStudentBill(
+            $wasCreated = $this->createStudentBillIfMissing(
                 $student,
                 $setup,
                 $item->billing_item_id,
-                (float) $item->amount
+                (string) $item->amount,
+                $item->billingItem?->financial_category
             );
 
-            $wasExisting ? $updated++ : $created++;
+            $wasCreated ? $created++ : $preserved++;
         }
 
         return [
             'students_matched' => 1,
             'bills_created' => $created,
-            'bills_updated' => $updated,
+            'bills_updated' => 0,
+            'bills_preserved' => $preserved,
         ];
     }
 
@@ -126,7 +132,7 @@ class StudentBillSyncService
         }
 
         $items = $setup->items
-            ->filter(fn ($item) => (float) $item->amount > 0)
+            ->filter(fn ($item) => Money::toMinor((string) $item->amount) > 0)
             ->map(fn ($item) => [
                 'name' => $item->billingItem?->name,
                 'amount' => (float) $item->amount,
@@ -145,8 +151,13 @@ class StudentBillSyncService
         ];
     }
 
-    private function upsertStudentBill(Student $student, CategoryBillSetup $setup, int $billingItemId, float $amountDue): bool
-    {
+    private function createStudentBillIfMissing(
+        Student $student,
+        CategoryBillSetup $setup,
+        int $billingItemId,
+        string $amountDue,
+        ?string $financialCategory
+    ): bool {
         $bill = StudentBill::firstOrNew([
             'student_id' => $student->id,
             'billing_item_id' => $billingItemId,
@@ -154,15 +165,18 @@ class StudentBillSyncService
             'academic_term_id' => $setup->academic_term_id,
         ]);
 
-        $wasExisting = $bill->exists;
+        if ($bill->exists) {
+            return false;
+        }
 
+        $bill->financial_category = $financialCategory ?? BillingItem::FINANCIAL_CATEGORY_SCHOOL_FEES;
         $bill->category_bill_setup_id = $setup->id;
-        $bill->amount_due = $amountDue;
-        $bill->amount_paid = $bill->amount_paid ?? 0;
+        $bill->amount_due = Money::fromMinor(Money::toMinor($amountDue));
+        $bill->amount_paid = '0.00';
         $bill->refreshTotals();
         $bill->save();
 
-        return $wasExisting;
+        return true;
     }
 
     private function matchingStudents(CategoryBillSetup $setup): Collection

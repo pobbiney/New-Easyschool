@@ -20,6 +20,12 @@
             background: #f0fdf4; border: 1px solid #bbf7d0;
         }
         .credit-box strong { color: #15803d; }
+        .vault-box {
+            margin-top: 16px; padding: 14px 16px; border-radius: 8px;
+            background: #ecfdf5; border: 1px solid #86efac; color: #166534;
+            font-size: 13px; font-weight: 700;
+        }
+        .void-box { margin: 0 0 20px; padding: 16px; border-radius: 8px; background:#fff1f2; border:2px solid #e11d48; color:#9f1239; }
         .actions { margin-top: 24px; display: flex; gap: 12px; }
         .btn { border: none; border-radius: 8px; padding: 10px 18px; cursor: pointer; font-weight: 600; }
         .btn-primary { background: #25A194; color: #fff; }
@@ -29,6 +35,13 @@
 </head>
 <body>
     <div class="receipt">
+        @if($payment->isVoided())
+            <div class="void-box">
+                <strong>VOIDED DEVELOPMENT TEST PAYMENT</strong><br>
+                This receipt is retained for audit history and is not an active collection.<br>
+                <span class="meta">Corrected {{ $payment->voided_at?->format('M j, Y g:i A') }} by {{ $payment->voided_actor ?: 'authorized maintenance' }}. Reason: {{ $payment->void_reason }}</span>
+            </div>
+        @endif
         <div class="header">
             <div style="display:flex;align-items:center;gap:14px;">
                 <img src="{{ $school->logoUrl() }}" alt="{{ $school->name ?? $school->school_name ?? 'School' }}" style="width:64px;height:64px;object-fit:contain;border-radius:12px;background:#f8fafc;border:1px solid #e5e7eb;">
@@ -48,6 +61,12 @@
             <div><strong>Student:</strong> {{ $payment->student->full_name }} ({{ $payment->student->student_id }})</div>
             <div><strong>Class:</strong> {{ $payment->student->class_name }}</div>
             <div><strong>Category:</strong> {{ $payment->student->schoolClass?->category?->name ?: '—' }}</div>
+            @if($payment->financial_category)
+                <div><strong>Payment category:</strong> {{ $payment->financial_category === 'feeding_fee' ? 'Feeding Fee' : 'School Fees' }}</div>
+            @endif
+            @if($payment->financial_category === 'feeding_fee' && $payment->schoolVaultTransactions->contains('transaction_type', 'feeding_fee_collection'))
+                <div><strong>Financial destination:</strong> School Vault</div>
+            @endif
             <div><strong>Method:</strong> {{ $payment->payment_method }} @if($payment->reference) | <strong>Ref:</strong> {{ $payment->reference }} @endif</div>
             @if($payment->payment_channel)
                 <div><strong>Channel:</strong> {{ ucwords(str_replace('_', ' ', $payment->payment_channel)) }}</div>
@@ -58,11 +77,14 @@
         </div>
 
         <table>
-            <thead><tr><th>Billing Item</th><th>Amount Applied</th></tr></thead>
+            <thead><tr><th>Billing Item</th>@if($payment->financial_category)<th>Academic period</th>@endif<th>Amount Applied</th></tr></thead>
             <tbody>
                 @foreach($payment->allocations as $allocation)
                 <tr>
                     <td>{{ $allocation->studentBill?->billingItem?->name ?: 'Bill Item' }}</td>
+                    @if($payment->financial_category)
+                        <td>{{ collect([$allocation->studentBill?->academicTerm?->name, $allocation->studentBill?->academicYear?->name])->filter()->join(' · ') ?: '—' }}</td>
+                    @endif
                     <td>{{ number_format($allocation->amount, 2) }}</td>
                 </tr>
                 @endforeach
@@ -81,10 +103,18 @@
         @if($payment->credit_generated > 0)
             <p class="meta"><strong>Overpayment saved as credit:</strong> {{ number_format($payment->credit_generated, 2) }}</p>
         @endif
+        @if($payment->financial_category && $categoryOutstanding !== null)
+            <p class="meta"><strong>Remaining {{ $payment->financial_category === 'feeding_fee' ? 'Feeding Fee' : 'School Fees' }} balance:</strong> {{ number_format((float) $categoryOutstanding, 2) }}</p>
+        @endif
+        @if($payment->financial_category === 'feeding_fee' && $payment->schoolVaultTransactions->contains('transaction_type', 'feeding_fee_collection'))
+            <div class="vault-box">This Feeding Fee collection was successfully credited to the School Vault.</div>
+        @endif
+        @if($payment->financial_category !== 'feeding_fee')
         <div class="credit-box">
             <p class="meta" style="margin:0;"><strong>Remaining credit balance:</strong> {{ number_format($payment->student->credit_balance, 2) }}</p>
             <p class="meta" style="margin:8px 0 0;">This amount can be used to reduce the student's next bill payment. Toggle "Use credit" on the record payment page.</p>
         </div>
+        @endif
         @if($payment->notes)<p class="meta" style="margin-top:16px;"><strong>Notes:</strong> {{ $payment->notes }}</p>@endif
 
         <div class="actions">

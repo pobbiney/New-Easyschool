@@ -202,7 +202,7 @@
         background: linear-gradient(90deg, #25A194, #6366f1);
     }
     .exp-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .exp-board table { min-width: 980px; }
+    .exp-board table { min-width: 1240px; }
     .exp-date {
         min-width: 88px;
     }
@@ -277,6 +277,22 @@
         align-items: center;
         justify-content: center;
         border-radius: 10px;
+    }
+    [data-theme="dark"] .expense-drawer {
+        background: #1e293b !important;
+        color: #e2e8f0;
+    }
+    [data-theme="dark"] .expense-drawer > .border-bottom {
+        border-color: #334155 !important;
+    }
+    [data-theme="dark"] .expense-drawer .text-primary-light {
+        color: #e2e8f0 !important;
+    }
+    [data-theme="dark"] .expense-drawer .bg-success-50 {
+        background: rgba(22, 163, 74, .12) !important;
+    }
+    [data-theme="dark"] .expense-drawer .bg-warning-50 {
+        background: rgba(245, 158, 11, .12) !important;
     }
     @media (max-width: 767px) {
         .exp-hero { padding: 22px 18px; }
@@ -445,12 +461,15 @@
                 <table class="table bordered-table mb-0">
                     <thead>
                         <tr>
+                            <th>Expense reference</th>
                             <th>Date</th>
                             <th>Paid to</th>
                             <th>Category</th>
                             <th>Method</th>
                             <th>Reference</th>
                             <th>Amount</th>
+                            <th>Funding source</th>
+                            <th>Posting status</th>
                             <th>Recorded by</th>
                             <th></th>
                         </tr>
@@ -460,8 +479,12 @@
                             @php
                                 $tone = ($expense->expense_category_id ?? 0) % 6;
                                 $initials = strtoupper(substr(preg_replace('/\s+/', '', $expense->payee) ?: 'EX', 0, 2));
+                                $activePosting = $expense->vaultPostings->firstWhere('status', \App\Models\Expense\ExpenseVaultPosting::STATUS_ACTIVE);
+                                $hasVaultDebit = $activePosting?->vaultTransactions?->contains('transaction_type', \App\Models\SchoolVaultTransaction::TYPE_SCHOOL_OPERATIONAL_EXPENSE) ?? false;
+                                $isCancelled = $expense->status === \App\Models\Expense\Expense::STATUS_CANCELLED;
                             @endphp
                             <tr>
+                                <td class="fw-semibold">{{ $expense->expense_number }}</td>
                                 <td>
                                     <div class="exp-date">
                                         <strong>{{ $expense->expense_date->format('d M Y') }}</strong>
@@ -490,24 +513,41 @@
                                 </td>
                                 <td class="text-secondary-light">{{ $expense->reference ?: '—' }}</td>
                                 <td class="exp-amount">{{ \App\Support\Money::ghs($expense->amount) }}</td>
+                                <td>
+                                    @if($hasVaultDebit || $isCancelled && $expense->vaultPostings->isNotEmpty())
+                                        <span class="ac-pill ac-pill-teal">School Vault</span>
+                                    @else
+                                        <span class="ac-pill ac-pill-amber">Historical / unposted</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($isCancelled)
+                                        <span class="ac-pill ac-pill-rose">Cancelled / reversed</span>
+                                    @elseif($hasVaultDebit)
+                                        <span class="ac-pill ac-pill-teal">Posted</span>
+                                    @else
+                                        <span class="ac-pill ac-pill-amber">Unposted</span>
+                                    @endif
+                                </td>
                                 <td class="text-sm">{{ $expense->recorder?->name ?: '—' }}</td>
                                 <td>
                                     <div class="d-flex gap-8 justify-content-end">
+                                        @if(!$isCancelled)
                                         <button type="button"
                                             data-url="{{ route('get-expense-id', $expense->id) }}"
                                             class="edit-sidebar-btn btn btn-sm btn-outline-primary-600 exp-act show-expense-edit"
                                             title="Edit">
                                             <i class="ri-edit-2-line"></i>
                                         </button>
-                                        <form method="POST" action="{{ route('delete-expense-process') }}"
-                                            data-confirm-title="Delete this expense?"
-                                            data-confirm="This cannot be undone.">
+                                        <form method="POST" action="{{ route('delete-expense-process') }}" class="cancel-expense-form">
                                             @csrf
                                             <input type="hidden" name="expense_id" value="{{ $expense->id }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger-600 exp-act" title="Delete">
+                                            <input type="hidden" name="cancellation_reason" value="">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger-600 exp-act" title="Cancel expense">
                                                 <i class="ri-delete-bin-line"></i>
                                             </button>
                                         </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -554,10 +594,33 @@
             $('#edit_expense_reference').val(data.reference || '');
             $('#edit_expense_year_id').val(data.academic_year_id || '');
             $('#edit_expense_notes').val(data.notes || '');
+            $('#edit_expense_correction_reason').val('');
             var $opt = $('#edit_expense_category_id option[value="' + data.expense_category_id + '"]');
             $opt.prop('disabled', false);
             $('#edit_expense_category_id').val(data.expense_category_id);
         });
+    });
+
+    function updateExpenseProjection() {
+        var available = parseFloat($('#expense-vault-balance').data('balance')) || 0;
+        var amount = parseFloat($('#expense_amount').val()) || 0;
+        var projected = available - amount;
+        $('#expense-projected-balance').text('GHS ' + projected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        var insufficient = amount > available;
+        $('#expense-insufficient-warning').toggleClass('d-none', !insufficient);
+        $('#expense-submit').prop('disabled', insufficient);
+    }
+
+    $('#expense_amount').on('input change', updateExpenseProjection);
+    updateExpenseProjection();
+
+    $('.cancel-expense-form').on('submit', function (event) {
+        var reason = window.prompt('Why is this expense being cancelled?');
+        if (!reason || !reason.trim()) {
+            event.preventDefault();
+            return;
+        }
+        $(this).find('input[name="cancellation_reason"]').val(reason.trim());
     });
 </script>
 @endsection

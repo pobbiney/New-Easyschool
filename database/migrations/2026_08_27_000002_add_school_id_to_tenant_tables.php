@@ -122,6 +122,19 @@ return new class extends Migration
                 continue;
             }
 
+            // MySQL may use the unique class-teacher index to support the
+            // existing foreign key. Give that constraint a non-unique index
+            // before replacing the legacy unique key with a tenant key.
+            if ($table === 'school_classes' && $columns === ['class_teacher_id']) {
+                $supportIndex = 'school_classes_class_teacher_id_fk_index';
+
+                if (! $this->indexExists($table, $supportIndex)) {
+                    Schema::table($table, function (Blueprint $blueprint) use ($supportIndex) {
+                        $blueprint->index('class_teacher_id', $supportIndex);
+                    });
+                }
+            }
+
             Schema::table($table, function (Blueprint $blueprint) use ($indexName) {
                 $blueprint->dropUnique($indexName);
             });

@@ -13,6 +13,7 @@ use App\Services\Billing\PaystackService;
 use App\Services\Billing\StudentBillCreditService;
 use App\Services\ParentPortal\ParentStudentService;
 use App\Support\AcademicPeriodDefaults;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -47,6 +48,10 @@ class ParentBillsController extends Controller
         $allBills = $billsQuery->get();
         $outstandingBills = $this->paymentProcessor->outstandingBillsForStudent($child);
         $totalOutstanding = $outstandingBills->sum('balance');
+        $onlinePayableBills = $outstandingBills
+            ->where('financial_category', 'school_fees')
+            ->values();
+        $onlineOutstanding = $onlinePayableBills->sum('balance');
         $creditBalance = $this->creditService->creditBalance($child);
 
         return view('parent.bills', [
@@ -56,8 +61,11 @@ class ParentBillsController extends Controller
             'bills' => $allBills,
             'outstandingBills' => $outstandingBills,
             'totalOutstanding' => $totalOutstanding,
+            'onlinePayableBills' => $onlinePayableBills,
+            'onlineOutstanding' => $onlineOutstanding,
             'creditBalance' => $creditBalance,
-            'netPayable' => max(round($totalOutstanding - $creditBalance, 2), 0),
+            'netPayable' => Money::fromMinor(max(Money::toMinor((string) $totalOutstanding) - Money::toMinor($creditBalance), 0)),
+            'onlineNetPayable' => Money::fromMinor(max(Money::toMinor((string) $onlineOutstanding) - Money::toMinor($creditBalance), 0)),
             'period' => AcademicPeriodDefaults::forFrontend($request),
             'academicYears' => AcademicYear::query()->where('status', 'Active')->orderByDesc('name')->get(),
             'academicTerms' => AcademicTerm::query()->where('status', 'Active')->orderBy('sort_order')->get(),

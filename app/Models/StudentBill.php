@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 
 class StudentBill extends Model
 {
-
     protected $fillable = [
         'student_id',
         'category_bill_setup_id',
         'billing_item_id',
+        'financial_category',
         'academic_year_id',
         'academic_term_id',
         'amount_due',
@@ -57,11 +58,13 @@ class StudentBill extends Model
 
     public function refreshTotals(): void
     {
-        $this->balance = max((float) $this->amount_due - (float) $this->amount_paid, 0);
+        $paidMinor = Money::toMinor((string) $this->amount_paid);
+        $balanceMinor = max(Money::toMinor((string) $this->amount_due) - $paidMinor, 0);
+        $this->balance = Money::fromMinor($balanceMinor);
 
-        if ($this->balance <= 0 && (float) $this->amount_paid > 0) {
+        if ($balanceMinor === 0 && $paidMinor > 0) {
             $this->status = 'Paid';
-        } elseif ((float) $this->amount_paid > 0) {
+        } elseif ($paidMinor > 0) {
             $this->status = 'Partial';
         } else {
             $this->status = 'Pending';

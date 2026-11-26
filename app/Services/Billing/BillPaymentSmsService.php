@@ -2,6 +2,8 @@
 
 namespace App\Services\Billing;
 
+use App\Support\Money;
+
 use App\Models\BillPayment;
 use App\Models\SchoolSetting;
 use App\Models\Student;
@@ -63,8 +65,9 @@ class BillPaymentSmsService
     {
         $school = SchoolSetting::current();
         $schoolName = trim((string) ($school->name ?? 'EasySchool'));
-        $amount = round((float) $payment->amount + (float) $payment->credit_applied, 2);
-        $amountFormatted = number_format($amount, 2);
+        $amountFormatted = Money::fromMinor(
+            Money::toMinor((string) $payment->amount) + Money::toMinor((string) $payment->credit_applied)
+        );
 
         return sprintf(
             'Dear Parent, %s fee payment of GHS %s received for %s. Receipt: %s. Thank you. - %s',

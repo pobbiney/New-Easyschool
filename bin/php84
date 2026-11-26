@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+set -eu
+
+if [ -n "${PHP84_BIN:-}" ]; then
+    exec "$PHP84_BIN" "$@"
+fi
+
+MAMP_PHP="/Applications/MAMP/bin/php/php8.4.27/bin/php"
+
+if [ -x "$MAMP_PHP" ]; then
+    exec "$MAMP_PHP" "$@"
+fi
+
+if command -v php >/dev/null 2>&1 && php -r 'exit(PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500 ? 0 : 1);'; then
+    exec php "$@"
+fi
+
+echo "PHP 8.4 is required. Set PHP84_BIN to the PHP 8.4 executable." >&2
+exit 1

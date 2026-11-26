@@ -16,8 +16,18 @@
                 <textarea class="form-control" name="description" rows="3" placeholder="What this billing item covers">{{ old('description') }}</textarea>
             </div>
             <div class="col-sm-12">
+                <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Financial Category</label>
+                <select class="form-control form-select financial-category-select" name="financial_category" data-payment-select="#add_billing_item_is_compulsory" data-help="#add_financial_category_help">
+                    @foreach($financialCategories as $value => $label)
+                        <option value="{{ $value }}" @selected(old('financial_category', \App\Models\BillingItem::FINANCIAL_CATEGORY_SCHOOL_FEES) === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <small class="text-secondary-light d-block mt-6 financial-category-help" id="add_financial_category_help"></small>
+                @error('financial_category') <small class="text-danger">{{ $message }}</small> @enderror
+            </div>
+            <div class="col-sm-12">
                 <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Payment Type</label>
-                <select class="form-control form-select" name="is_compulsory">
+                <select class="form-control form-select" name="is_compulsory" id="add_billing_item_is_compulsory">
                     <option value="1" @selected(old('is_compulsory', '1') == '1')>Compulsory</option>
                     <option value="0" @selected(old('is_compulsory') === '0')>Optional</option>
                 </select>

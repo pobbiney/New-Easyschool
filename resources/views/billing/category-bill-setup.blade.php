@@ -333,6 +333,17 @@
         color: var(--primary-600, #25A194);
     }
 
+    .setup-financial-group + .setup-financial-group { border-top: 10px solid var(--neutral-100, #f3f4f6); }
+    .setup-group-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--neutral-200, #e5e7eb); background: rgba(37, 161, 148, 0.05); }
+    .setup-financial-group.is-feeding .setup-group-head { background: rgba(245, 158, 11, 0.08); }
+    .setup-group-title { display: flex; align-items: center; gap: 12px; }
+    .setup-group-icon { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: rgba(37, 161, 148, 0.12); color: var(--primary-600, #25A194); font-size: 18px; flex-shrink: 0; }
+    .is-feeding .setup-group-icon { background: rgba(245, 158, 11, 0.14); color: #a16207; }
+    .setup-group-subtotal { text-align: right; }
+    .setup-group-subtotal strong { display: block; font-size: 18px; color: var(--neutral-900, #111827); }
+    .vault-destination { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; color: #a16207; font-size: 11px; font-weight: 700; }
+    .setup-group-empty { padding: 24px; color: var(--neutral-500, #6b7280); font-size: 13px; }
+
     .setup-result-card {
         margin-top: 18px;
         padding: 16px 18px;
@@ -551,20 +562,10 @@
                 </div>
 
                 <div id="setupTableWrap" class="d-none">
-                    <table class="table bordered-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Billing Item</th>
-                                <th>Description</th>
-                                <th>Type</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="setupItemsBody"></tbody>
-                    </table>
+                    <div id="setupItemsBody"></div>
                     <div class="setup-total-bar">
                         <div>
-                            <p class="text-sm text-secondary-light mb-4">Total bill for this setup</p>
+                            <p class="text-sm text-secondary-light mb-4">Combined bill total for this setup</p>
                             <div class="setup-total-value" id="setupTotalValue">0.00</div>
                         </div>
                         <span class="setup-status-badge is-ready d-none" id="setupLoadedBadge">
@@ -585,6 +586,8 @@
     const csrfToken = @json(csrf_token());
     const defaultAcademicYearId = @json($defaultAcademicYearId);
     const defaultAcademicTermId = @json($defaultAcademicTermId);
+    const schoolFeesCategory = @json(\App\Models\BillingItem::FINANCIAL_CATEGORY_SCHOOL_FEES);
+    const feedingFeeCategory = @json(\App\Models\BillingItem::FINANCIAL_CATEGORY_FEEDING_FEE);
 
     let loadedItems = [];
     let activeRequest = null;
@@ -637,11 +640,22 @@
     }
 
     function updateTotal() {
-        const total = loadedItems.reduce(function (sum, item) {
-            return sum + (parseFloat(item.amount) || 0);
-        }, 0);
+        const subtotal = function (category) {
+            return loadedItems.reduce(function (sum, item) {
+                return item.financial_category === category ? sum + (parseFloat(item.amount) || 0) : sum;
+            }, 0);
+        };
+        const schoolFeesTotal = subtotal(schoolFeesCategory);
+        const feedingFeeTotal = subtotal(feedingFeeCategory);
+        const total = schoolFeesTotal + feedingFeeTotal;
 
+        $('#schoolFeesSubtotal').text(formatSetupMoney(schoolFeesTotal));
+        $('#feedingFeeSubtotal').text(formatSetupMoney(feedingFeeTotal));
         $('#setupTotalValue').text(total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    }
+
+    function formatSetupMoney(value) {
+        return '₵' + Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function buildSkeletonRows(count) {
@@ -658,20 +672,44 @@
     }
 
     function renderSetupRows() {
-        let html = '';
+        const renderGroup = function (category, title, description, icon, subtotalId, groupClass) {
+            const groupItems = loadedItems
+                .map(function (item, index) { return { item: item, index: index }; })
+                .filter(function (entry) { return entry.item.financial_category === category; });
+            let rows = '';
 
-        loadedItems.forEach(function (item, index) {
-            const initials = (item.name || '').substring(0, 2).toUpperCase();
-            const typeBadge = item.is_compulsory
-                ? '<span class="compulsory-badge"><i class="ri-lock-line"></i> Compulsory</span>'
-                : '<span class="optional-badge">Optional</span>';
-            html += '<tr class="bill-item-row">' +
-                '<td><div class="bill-item-cell"><span class="bill-item-avatar">' + initials + '</span><span class="fw-semibold">' + $('<div>').text(item.name).html() + '</span></div></td>' +
-                '<td class="text-secondary-light">' + $('<div>').text(item.description || '—').html() + '</td>' +
-                '<td>' + typeBadge + '</td>' +
-                '<td><div class="amount-input-wrap"><span class="currency-prefix">₵</span><input type="number" min="0" step="0.01" class="form-control setup-amount" data-index="' + index + '" value="' + (item.amount ?? '') + '" placeholder="0.00"' + (item.is_compulsory ? ' required' : '') + '></div></td>' +
-            '</tr>';
-        });
+            groupItems.forEach(function (entry) {
+                const item = entry.item;
+                const index = entry.index;
+                const initials = (item.name || '').substring(0, 2).toUpperCase();
+                const typeBadge = item.is_compulsory
+                    ? '<span class="compulsory-badge"><i class="ri-lock-line"></i> Compulsory</span>'
+                    : '<span class="optional-badge">Optional</span>';
+                rows += '<tr class="bill-item-row">' +
+                    '<td><div class="bill-item-cell"><span class="bill-item-avatar">' + initials + '</span><span class="fw-semibold">' + $('<div>').text(item.name).html() + '</span></div></td>' +
+                    '<td class="text-secondary-light">' + $('<div>').text(item.description || '—').html() + '</td>' +
+                    '<td>' + typeBadge + '</td>' +
+                    '<td><div class="amount-input-wrap"><span class="currency-prefix">₵</span><input type="number" min="0" step="0.01" class="form-control setup-amount" data-index="' + index + '" value="' + (item.amount ?? '') + '" placeholder="0.00"' + (item.is_compulsory ? ' required' : '') + '></div></td>' +
+                '</tr>';
+            });
+
+            const destination = category === feedingFeeCategory
+                ? '<span class="vault-destination"><i class="ri-safe-2-line"></i> Future destination: School Vault</span>'
+                : '';
+            const table = groupItems.length
+                ? '<table class="table bordered-table mb-0"><thead><tr><th>Billing Item</th><th>Description</th><th>Type</th><th>Amount</th></tr></thead><tbody>' + rows + '</tbody></table>'
+                : '<div class="setup-group-empty">No active items are classified in this financial category.</div>';
+
+            return '<section class="setup-financial-group ' + groupClass + '">' +
+                '<div class="setup-group-head">' +
+                    '<div class="setup-group-title"><span class="setup-group-icon"><i class="' + icon + '"></i></span><div><h6 class="mb-2">' + title + '</h6><p class="text-xs text-secondary-light mb-0">' + description + '</p>' + destination + '</div></div>' +
+                    '<div class="setup-group-subtotal"><span class="text-xs text-secondary-light">Subtotal</span><strong id="' + subtotalId + '">₵0.00</strong></div>' +
+                '</div>' + table +
+            '</section>';
+        };
+
+        const html = renderGroup(schoolFeesCategory, 'School Fees', 'Tuition and all non-feeding billing items.', 'ri-bank-line', 'schoolFeesSubtotal', 'is-school-fees') +
+            renderGroup(feedingFeeCategory, 'Feeding Fee', 'Optional termly feeding charges for this class category.', 'ri-restaurant-2-line', 'feedingFeeSubtotal', 'is-feeding');
 
         $('#setupItemsBody').html(html);
         $('#itemCountBadge').removeClass('d-none');
@@ -706,7 +744,7 @@
         setLoading(true);
         $('#setupPlaceholder').addClass('d-none');
         $('#setupTableWrap').removeClass('d-none');
-        $('#setupItemsBody').html(buildSkeletonRows(4));
+        $('#setupItemsBody').html('<table class="table bordered-table mb-0"><tbody>' + buildSkeletonRows(4) + '</tbody></table>');
         $('#setupResult').addClass('d-none');
 
         activeRequest = $.ajax({
@@ -790,7 +828,7 @@
                 $('#setupResultStats').html(
                     '<span class="result-stat"><i class="ri-group-line"></i> ' + (stats.students_matched || 0) + ' students</span>' +
                     '<span class="result-stat"><i class="ri-add-circle-line"></i> ' + (stats.bills_created || 0) + ' created</span>' +
-                    '<span class="result-stat"><i class="ri-refresh-line"></i> ' + (stats.bills_updated || 0) + ' updated</span>'
+                    '<span class="result-stat"><i class="ri-shield-check-line"></i> ' + (stats.bills_preserved || 0) + ' existing preserved</span>'
                 );
                 showAppToast('success', res.message || 'Bill setup saved.');
             },

@@ -7,11 +7,20 @@ use App\Models\AcademicYear;
 use App\Models\Expense\Expense;
 use App\Models\Expense\ExpenseCategory;
 use App\Support\AcademicPeriodDefaults;
+use App\Services\Finance\ExpenseVaultService;
+use App\Services\Finance\SchoolVaultService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class ExpenseController extends Controller
 {
+    public function __construct(
+        private ExpenseVaultService $expenseVaultService,
+        private SchoolVaultService $schoolVaultService,
+    ) {}
+
     public function index(Request $request)
     {
         $filters = [
@@ -22,18 +31,19 @@ class ExpenseController extends Controller
         ];
 
         $query = $this->filteredQuery($filters);
+        $activeQuery = (clone $query)->active();
 
         $expenses = (clone $query)
-            ->with(['category', 'recorder', 'academicYear'])
+            ->with(['category', 'recorder', 'academicYear', 'vaultPostings.vaultTransactions'])
             ->orderByDesc('expense_date')
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
-        $filteredTotal = (clone $query)->sum('amount');
-        $filteredCount = (clone $query)->count();
+        $filteredTotal = (clone $activeQuery)->sum('amount');
+        $filteredCount = (clone $activeQuery)->count();
 
-        $totals = (clone $query)
+        $totals = (clone $activeQuery)
             ->select('expense_category_id')
             ->selectRaw('SUM(amount) as total')
             ->groupBy('expense_category_id')
@@ -61,13 +71,16 @@ class ExpenseController extends Controller
             'paymentMethods' => Expense::PAYMENT_METHODS,
             'academicYears' => AcademicYear::where('status', 'Active')->orderByDesc('id')->get(),
             'defaultYearId' => AcademicPeriodDefaults::yearId(),
+            'vaultBalance' => $this->schoolVaultService->availableBalance(),
+            'expenseRequestToken' => (string) Str::uuid(),
+            'correctionRequestToken' => (string) Str::uuid(),
             'filteredTotal' => $filteredTotal,
             'filteredCount' => $filteredCount,
             'categoryTotals' => $categoryTotals,
             'stats' => [
-                'today' => (float) Expense::whereDate('expense_date', $today)->sum('amount'),
-                'month' => (float) Expense::where('expense_date', '>=', now()->copy()->startOfMonth()->toDateString())->sum('amount'),
-                'year' => (float) Expense::where('expense_date', '>=', now()->copy()->startOfYear()->toDateString())->sum('amount'),
+                'today' => (float) Expense::active()->whereDate('expense_date', $today)->sum('amount'),
+                'month' => (float) Expense::active()->where('expense_date', '>=', now()->copy()->startOfMonth()->toDateString())->sum('amount'),
+                'year' => (float) Expense::active()->where('expense_date', '>=', now()->copy()->startOfYear()->toDateString())->sum('amount'),
                 'records' => $filteredCount,
             ],
         ]);
@@ -76,19 +89,16 @@ class ExpenseController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $request->validate(['request_token' => 'required|uuid']);
+        $data['academic_year_id'] = $data['academic_year_id'] ?? AcademicPeriodDefaults::yearId();
 
-        $category = ExpenseCategory::findOrFail($data['expense_category_id']);
-        if ($category->status !== 'Active') {
-            return back()->withInput()->with('message_error', 'Choose an active expense category.');
+        try {
+            $this->expenseVaultService->create($data, Auth::id(), $request->string('request_token')->toString());
+        } catch (InvalidArgumentException $exception) {
+            return back()->withInput()->with('message_error', $exception->getMessage());
         }
 
-        Expense::create([
-            ...$data,
-            'academic_year_id' => $data['academic_year_id'] ?? AcademicPeriodDefaults::yearId(),
-            'created_by' => Auth::id(),
-        ]);
-
-        return back()->with('message_success', 'Expense recorded successfully.');
+        return back()->with('message_success', 'Expense recorded and debited from the School Vault successfully.');
     }
 
     public function show($id)
@@ -105,6 +115,8 @@ class ExpenseController extends Controller
             'reference' => $expense->reference,
             'notes' => $expense->notes,
             'academic_year_id' => $expense->academic_year_id,
+            'status' => $expense->status,
+            'expense_number' => $expense->expense_number,
         ]);
     }
 
@@ -112,33 +124,65 @@ class ExpenseController extends Controller
     {
         $request->validate([
             'expense_id' => 'required|exists:expenses,id',
+            'request_token' => 'required|uuid',
+            'correction_reason' => 'nullable|string|max:1000',
         ]);
 
         $data = $this->validated($request);
         $expense = Expense::findOrFail($request->input('expense_id'));
 
-        $category = ExpenseCategory::findOrFail($data['expense_category_id']);
-        if ($category->status !== 'Active' && (int) $category->id !== (int) $expense->expense_category_id) {
-            return back()->withInput()->with('message_error', 'Choose an active expense category.');
+        if (! $expense->vaultPostings()->exists() && ! $expense->schoolVaultTransactions()->exists()) {
+            $category = ExpenseCategory::findOrFail($data['expense_category_id']);
+            if ($category->status !== 'Active' && (int) $category->id !== (int) $expense->expense_category_id) {
+                return back()->withInput()->with('message_error', 'Choose an active expense category.');
+            }
+
+            $expense->update([...$data, 'updated_by' => Auth::id()]);
+
+            return back()->with('message_success', 'Historical unposted expense updated successfully.');
         }
 
-        $expense->update([
-            ...$data,
-            'updated_by' => Auth::id(),
-        ]);
+        try {
+            $this->expenseVaultService->update(
+                $expense,
+                $data,
+                Auth::id(),
+                $request->string('request_token')->toString(),
+                $request->input('correction_reason'),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return back()->withInput()->with('message_error', $exception->getMessage());
+        }
 
-        return back()->with('message_success', 'Expense updated successfully.');
+        return back()->with('message_success', 'Expense updated with its School Vault history preserved.');
     }
 
     public function destroy(Request $request)
     {
         $request->validate([
             'expense_id' => 'required|exists:expenses,id',
+            'cancellation_reason' => 'nullable|string|max:1000',
         ]);
 
-        Expense::findOrFail($request->input('expense_id'))->delete();
+        $expense = Expense::findOrFail($request->input('expense_id'));
 
-        return back()->with('message_success', 'Expense deleted.');
+        if (! $expense->vaultPostings()->exists() && ! $expense->schoolVaultTransactions()->exists()) {
+            $expense->delete();
+
+            return back()->with('message_success', 'Historical unposted expense deleted.');
+        }
+
+        try {
+            $this->expenseVaultService->cancel(
+                $expense,
+                (string) $request->input('cancellation_reason'),
+                Auth::id(),
+            );
+        } catch (InvalidArgumentException $exception) {
+            return back()->with('message_error', $exception->getMessage());
+        }
+
+        return back()->with('message_success', 'Expense cancelled and its amount restored to the School Vault.');
     }
 
     /**

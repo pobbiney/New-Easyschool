@@ -352,7 +352,7 @@ class ReportCatalog
             'school_class_id' => $request->input('school_class_id'),
         ];
 
-        $query = BillPayment::query()->with('student')->orderByDesc('paid_at');
+        $query = BillPayment::query()->active()->with('student')->orderByDesc('paid_at');
         $this->whenDateFrom($query, $values['from_date'], 'paid_at');
         $this->whenDateTo($query, $values['to_date'], 'paid_at');
         if ($values['school_class_id']) {
@@ -468,12 +468,15 @@ class ReportCatalog
             'expense_category_id' => $request->input('expense_category_id'),
         ];
 
-        $query = Expense::query()->with(['category', 'recorder'])->orderByDesc('expense_date');
+        $query = Expense::query()->active()->with(['category', 'recorder', 'vaultPostings.vaultTransactions'])->orderByDesc('expense_date');
         $this->whenDateFrom($query, $values['from_date'], 'expense_date');
         $this->whenDateTo($query, $values['to_date'], 'expense_date');
         $this->whenValue($query, $values['expense_category_id'], 'expense_category_id');
 
         $rows = $query->get();
+        $vaultFundedRows = $rows->filter(fn (Expense $row) => $row->vaultPostings
+            ->contains(fn ($posting) => $posting->status === \App\Models\Expense\ExpenseVaultPosting::STATUS_ACTIVE
+                && $posting->vaultTransactions->contains('transaction_type', \App\Models\SchoolVaultTransaction::TYPE_SCHOOL_OPERATIONAL_EXPENSE)));
 
         return $this->pack('expenses', 'Outgoing school spend.', [
             ['key' => 'date', 'label' => 'Date'],
@@ -481,6 +484,8 @@ class ReportCatalog
             ['key' => 'payee', 'label' => 'Paid to'],
             ['key' => 'method', 'label' => 'Method'],
             ['key' => 'reference', 'label' => 'Reference'],
+            ['key' => 'funding', 'label' => 'Funding'],
+            ['key' => 'posting', 'label' => 'Posting'],
             ['key' => 'amount', 'label' => 'Amount', 'money' => true],
         ], $rows->map(fn (Expense $row) => [
             'date' => $row->expense_date?->format('d M Y'),
@@ -488,10 +493,13 @@ class ReportCatalog
             'payee' => $row->payee,
             'method' => $row->payment_method,
             'reference' => $row->reference ?: '—',
+            'funding' => $row->vaultPostings->contains(fn ($posting) => $posting->vaultTransactions->isNotEmpty()) ? 'School Vault' : 'Historical / unposted',
+            'posting' => $row->vaultPostings->contains(fn ($posting) => $posting->status === \App\Models\Expense\ExpenseVaultPosting::STATUS_ACTIVE && $posting->vaultTransactions->isNotEmpty()) ? 'Posted' : 'Unposted',
             'amount' => Money::ghs($row->amount),
         ])->all(), [
             ['label' => 'Records', 'value' => number_format($rows->count())],
             ['label' => 'Spent', 'value' => Money::ghs($rows->sum('amount'))],
+            ['label' => 'Vault-funded', 'value' => Money::ghs($vaultFundedRows->sum('amount'))],
         ], [
             ...$this->dateFilters(),
             [

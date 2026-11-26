@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BillPayment;
 use App\Models\SchoolSetting;
 use App\Models\Student;
+use App\Models\StudentBill;
 use App\Services\ParentPortal\ParentStudentService;
 use Illuminate\Support\Facades\Auth;
 
@@ -50,6 +51,9 @@ class ParentPaymentsController extends Controller
         $payment->load([
             'student.schoolClass.category',
             'allocations.studentBill.billingItem',
+            'allocations.studentBill.academicTerm',
+            'allocations.studentBill.academicYear',
+            'schoolVaultTransactions',
         ]);
 
         return view('billing.payment-receipt', [
@@ -58,6 +62,9 @@ class ParentPaymentsController extends Controller
             'statementUrl' => route('parent.bills', $child),
             'backUrl' => route('parent.dashboard'),
             'backLabel' => 'Back to Dashboard',
+            'categoryOutstanding' => $payment->financial_category
+                ? StudentBill::query()->where('student_id', $payment->student_id)->where('financial_category', $payment->financial_category)->sum('balance')
+                : null,
         ]);
     }
 }

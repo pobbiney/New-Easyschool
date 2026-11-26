@@ -16,6 +16,7 @@ class BillPendingPayment extends Model
 
     protected $fillable = [
         'student_id',
+        'financial_category',
         'amount',
         'credit_applied',
         'allocations',

@@ -15,6 +15,7 @@ class BillPaymentTransaction extends Model
 
     protected $fillable = [
         'student_id',
+        'financial_category',
         'reference',
         'amount',
         'credit_applied',

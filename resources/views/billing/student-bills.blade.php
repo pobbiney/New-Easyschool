@@ -61,7 +61,12 @@
     .sb-ledger-head h6 { margin: 0; font-size: 16px; font-weight: 700; color: #111827; }
     .sb-ledger-head p { margin: 4px 0 0; font-size: 12px; color: #9ca3af; }
     .sb-ledger-card .dataTable-wrapper { padding: 0; }
-    .sb-ledger-card table.dataTable { margin: 0 !important; }
+    .sb-ledger-card table.dataTable { margin: 0 !important; min-width: 1120px; }
+    .sb-ledger-card .dt-scroll-body {
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+    }
     .sb-ledger-card table.dataTable thead th {
         background: #f9fafb; font-size: 11px; font-weight: 700; text-transform: uppercase;
         letter-spacing: .05em; color: #6b7280; padding: 14px 16px; border-bottom: 1px solid #e5e7eb;
@@ -388,7 +393,7 @@
         </div>
         <div class="dataTable-wrapper">
             @if($rows->isNotEmpty())
-            <table class="table bordered-table mb-0 data-table" id="dataTable" data-page-length="10">
+            <table class="table bordered-table mb-0 data-table data-table-scroll-x" id="dataTable" data-page-length="10">
                 <thead>
                     <tr>
                         <th>Student</th>

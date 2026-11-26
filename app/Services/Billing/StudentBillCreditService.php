@@ -4,31 +4,32 @@ namespace App\Services\Billing;
 
 use App\Models\Student;
 use App\Models\StudentBillCreditTransaction;
+use App\Support\Money;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
 class StudentBillCreditService
 {
-    public function creditBalance(Student $student): float
+    public function creditBalance(Student $student): string
     {
-        return round((float) $student->credit_balance, 2);
+        return Money::fromMinor(Money::toMinor((string) $student->credit_balance));
     }
 
     public function addCredit(
         Student $student,
-        float $amount,
+        string|int|float $amount,
         string $source,
         ?int $billPaymentId = null,
         ?string $notes = null,
     ): StudentBillCreditTransaction {
-        $amount = round($amount, 2);
+        $amountMinor = Money::toMinor($amount);
 
-        if ($amount <= 0) {
+        if ($amountMinor <= 0) {
             throw new InvalidArgumentException('Credit amount must be greater than zero.');
         }
 
         $lockedStudent = Student::query()->whereKey($student->id)->lockForUpdate()->firstOrFail();
-        $newBalance = round((float) $lockedStudent->credit_balance + $amount, 2);
+        $newBalance = Money::fromMinor(Money::toMinor((string) $lockedStudent->credit_balance) + $amountMinor);
 
         $lockedStudent->credit_balance = $newBalance;
         $lockedStudent->save();
@@ -36,7 +37,7 @@ class StudentBillCreditService
         return StudentBillCreditTransaction::create([
             'student_id' => $lockedStudent->id,
             'type' => StudentBillCreditTransaction::TYPE_CREDIT,
-            'amount' => $amount,
+            'amount' => Money::fromMinor($amountMinor),
             'balance_after' => $newBalance,
             'source' => $source,
             'bill_payment_id' => $billPaymentId,
@@ -47,31 +48,31 @@ class StudentBillCreditService
 
     public function applyCredit(
         Student $student,
-        float $amount,
+        string|int|float $amount,
         ?int $billPaymentId = null,
         ?string $notes = null,
     ): StudentBillCreditTransaction {
-        $amount = round($amount, 2);
+        $amountMinor = Money::toMinor($amount);
 
-        if ($amount <= 0) {
+        if ($amountMinor <= 0) {
             throw new InvalidArgumentException('Credit amount must be greater than zero.');
         }
 
         $lockedStudent = Student::query()->whereKey($student->id)->lockForUpdate()->firstOrFail();
-        $currentBalance = round((float) $lockedStudent->credit_balance, 2);
+        $currentMinor = Money::toMinor((string) $lockedStudent->credit_balance);
 
-        if ($amount > $currentBalance + 0.009) {
+        if ($amountMinor > $currentMinor) {
             throw new InvalidArgumentException('Insufficient credit balance.');
         }
 
-        $newBalance = round($currentBalance - $amount, 2);
+        $newBalance = Money::fromMinor($currentMinor - $amountMinor);
         $lockedStudent->credit_balance = $newBalance;
         $lockedStudent->save();
 
         return StudentBillCreditTransaction::create([
             'student_id' => $lockedStudent->id,
             'type' => StudentBillCreditTransaction::TYPE_DEBIT,
-            'amount' => $amount,
+            'amount' => Money::fromMinor($amountMinor),
             'balance_after' => $newBalance,
             'source' => StudentBillCreditTransaction::SOURCE_PAYMENT_APPLIED,
             'bill_payment_id' => $billPaymentId,

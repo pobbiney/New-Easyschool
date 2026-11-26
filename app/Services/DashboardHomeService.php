@@ -290,6 +290,7 @@ class DashboardHomeService
         if ($this->access->can('student-bills')) {
             $days = $this->lastDayMap(14);
             $totals = BillPayment::query()
+                ->active()
                 ->where('paid_at', '>=', now()->subDays(13)->startOfDay())
                 ->selectRaw('DATE(paid_at) as d, SUM(amount) as total')
                 ->groupByRaw('DATE(paid_at)')

@@ -16,6 +16,16 @@
                 <textarea class="form-control" name="description" id="edit_billing_item_description" rows="3"></textarea>
             </div>
             <div class="col-sm-12">
+                <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Financial Category</label>
+                <select class="form-control form-select financial-category-select" name="financial_category" id="edit_billing_item_financial_category" data-payment-select="#edit_billing_item_is_compulsory" data-help="#edit_financial_category_help">
+                    @foreach($financialCategories as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+                <small class="text-secondary-light d-block mt-6 financial-category-help" id="edit_financial_category_help"></small>
+                @error('financial_category') <small class="text-danger">{{ $message }}</small> @enderror
+            </div>
+            <div class="col-sm-12">
                 <label class="text-sm fw-semibold text-primary-light d-inline-block mb-8">Payment Type</label>
                 <select class="form-control form-select" name="is_compulsory" id="edit_billing_item_is_compulsory">
                     <option value="1">Compulsory</option>
